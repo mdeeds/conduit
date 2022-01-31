@@ -55,21 +55,19 @@ export class Game {
 
   private setUpMouseBar() {
     const body = document.querySelector('body');
-    let lastTs = window.performance.now();
+    let lastTs = window.performance.now() / 1000;
     const p = new THREE.Vector3();
     const tracker = new Tracker();
 
     body.addEventListener('mousemove', (ev: MouseEvent) => {
-      const currentTs = window.performance.now();
+      const currentTs = window.performance.now() / 1000;
       const dt = currentTs - lastTs;
       lastTs += dt;
-      p.set(ev.clientX / 10, -ev.clientY / 10, 0);
+      p.set(ev.clientX / 100, -ev.clientY / 100, 0);
       const motion = tracker.updateMotion(p, currentTs, dt);
       console.log(JSON.stringify(motion));
       this.middleBar.setExtent(motion.velocity);
-      p.copy(motion.acceleration);
-      p.multiplyScalar(50);
-      this.middleBar2.setExtent(p);
+      this.middleBar2.setExtent(motion.acceleration);
     });
   }
 

@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+import { S } from "./settings";
+
 export class Bar extends THREE.Object3D {
   constructor(color: THREE.Color) {
     super();
@@ -17,6 +19,7 @@ export class Bar extends THREE.Object3D {
   private m = new THREE.Matrix4();
   private orientation = new THREE.Matrix4();
   private q = new THREE.Quaternion();
+  private v = new THREE.Vector3();
 
   private updatePole(from: THREE.Vector3, to: THREE.Vector3) {
     this.m.set(1, 0, 0, 0,
@@ -37,11 +40,10 @@ export class Bar extends THREE.Object3D {
     if (v.length() === 0) {
       this.scale.set(0.1, 0.1, 0.1);
     } else {
-      // this.m.lookAt(Bar.zero, v, this.up);
-      // this.matrix.makeScale(1, v.length(), 1);
-      // this.matrix.multiply(this.m);
-      this.updatePole(Bar.zero, v);
-      this.scale.set(1, v.length(), 1);
+      this.v.copy(v);
+      this.v.multiplyScalar(S.float('m'));
+      this.updatePole(Bar.zero, this.v);
+      this.scale.set(1, this.v.length(), 1);
     }
   }
 

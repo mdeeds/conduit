@@ -13,7 +13,7 @@ export class RollingVectorBuffer {
   }
 
   public addXYZ(x: number, y: number, z: number, ts: number) {
-    if (ts - this.timeBuffer[this.last] < 10) {
+    if (ts - this.timeBuffer[this.last] < 0.01) {
       return;
     }
     this.last = (this.last + 1) % this.size;
@@ -22,7 +22,7 @@ export class RollingVectorBuffer {
   }
 
   public add(v: THREE.Vector3, ts: number) {
-    if (ts - this.timeBuffer[this.last] < 10) {
+    if (ts - this.timeBuffer[this.last] < 0.01) {
       return;
     }
     this.last = (this.last + 1) % this.size;

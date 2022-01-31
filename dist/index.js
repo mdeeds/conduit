@@ -28,6 +28,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Bar = void 0;
 const THREE = __importStar(__webpack_require__(578));
+const settings_1 = __webpack_require__(451);
 class Bar extends THREE.Object3D {
     constructor(color) {
         super();
@@ -44,6 +45,7 @@ class Bar extends THREE.Object3D {
     m = new THREE.Matrix4();
     orientation = new THREE.Matrix4();
     q = new THREE.Quaternion();
+    v = new THREE.Vector3();
     updatePole(from, to) {
         this.m.set(1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1);
         /* THREE.Object3D().up (=Y) default orientation for all objects */
@@ -60,11 +62,10 @@ class Bar extends THREE.Object3D {
             this.scale.set(0.1, 0.1, 0.1);
         }
         else {
-            // this.m.lookAt(Bar.zero, v, this.up);
-            // this.matrix.makeScale(1, v.length(), 1);
-            // this.matrix.multiply(this.m);
-            this.updatePole(Bar.zero, v);
-            this.scale.set(1, v.length(), 1);
+            this.v.copy(v);
+            this.v.multiplyScalar(settings_1.S.float('m'));
+            this.updatePole(Bar.zero, this.v);
+            this.scale.set(1, this.v.length(), 1);
         }
     }
 }
@@ -142,20 +143,18 @@ class Game {
     }
     setUpMouseBar() {
         const body = document.querySelector('body');
-        let lastTs = window.performance.now();
+        let lastTs = window.performance.now() / 1000;
         const p = new THREE.Vector3();
         const tracker = new tracker_1.Tracker();
         body.addEventListener('mousemove', (ev) => {
-            const currentTs = window.performance.now();
+            const currentTs = window.performance.now() / 1000;
             const dt = currentTs - lastTs;
             lastTs += dt;
-            p.set(ev.clientX / 10, -ev.clientY / 10, 0);
+            p.set(ev.clientX / 100, -ev.clientY / 100, 0);
             const motion = tracker.updateMotion(p, currentTs, dt);
             console.log(JSON.stringify(motion));
             this.middleBar.setExtent(motion.velocity);
-            p.copy(motion.acceleration);
-            p.multiplyScalar(50);
-            this.middleBar2.setExtent(p);
+            this.middleBar2.setExtent(motion.acceleration);
         });
     }
     setUpRenderer() {
@@ -289,7 +288,7 @@ class RollingVectorBuffer {
         }
     }
     addXYZ(x, y, z, ts) {
-        if (ts - this.timeBuffer[this.last] < 10) {
+        if (ts - this.timeBuffer[this.last] < 0.01) {
             return;
         }
         this.last = (this.last + 1) % this.size;
@@ -297,7 +296,7 @@ class RollingVectorBuffer {
         this.timeBuffer[this.last] = ts;
     }
     add(v, ts) {
-        if (ts - this.timeBuffer[this.last] < 10) {
+        if (ts - this.timeBuffer[this.last] < 0.01) {
             return;
         }
         this.last = (this.last + 1) % this.size;
@@ -312,6 +311,39 @@ class RollingVectorBuffer {
 }
 exports.RollingVectorBuffer = RollingVectorBuffer;
 //# sourceMappingURL=rollingVectorBuffer.js.map
+
+/***/ }),
+
+/***/ 451:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.S = void 0;
+class S {
+    static cache = new Map();
+    static default = new Map();
+    static {
+        S.default.set('m', 1.0);
+    }
+    static float(name) {
+        if (S.cache.has(name)) {
+            return S.cache.get(name);
+        }
+        const url = new URL(document.URL);
+        const stringVal = url.searchParams.get(name);
+        if (!stringVal) {
+            S.cache.set(name, S.default.get(name));
+        }
+        else {
+            const val = parseFloat(stringVal);
+            S.cache.set(name, val);
+        }
+        return S.cache.get(name);
+    }
+}
+exports.S = S;
+//# sourceMappingURL=settings.js.map
 
 /***/ }),
 
