@@ -23,13 +23,22 @@ export class Hand {
   }
 
   private setUpMeshes() {
-    const handGeometry = new THREE.BoxGeometry(0.02, 0.15, 0.20);
-    handGeometry.translate(0, 0, -0.20);
-    const handMesh = new THREE.Mesh(handGeometry,
-      new THREE.MeshStandardMaterial(
-        { color: 'orange', roughness: 0.9 }));
-
-    this.grip.add(handMesh);
+    {
+      const handGeometry = new THREE.BoxGeometry(0.01, 0.15, 0.20);
+      handGeometry.translate(0.005, 0, -0.20);
+      const handMesh = new THREE.Mesh(handGeometry,
+        new THREE.MeshStandardMaterial(
+          { color: 'midnightblue', roughness: 0.9 }));
+      this.grip.add(handMesh);
+    }
+    {
+      const handGeometry = new THREE.BoxGeometry(0.01, 0.15, 0.20);
+      handGeometry.translate(-0.005, 0, -0.20);
+      const handMesh = new THREE.Mesh(handGeometry,
+        new THREE.MeshStandardMaterial(
+          { color: 'royalblue', roughness: 0.9 }));
+      this.grip.add(handMesh);
+    }
     this.scene.add(this.grip);
   }
 

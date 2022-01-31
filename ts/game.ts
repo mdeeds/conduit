@@ -21,9 +21,6 @@ export class Game {
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
     this.scene = new THREE.Scene();
-    const left = new Hand('left', this.renderer, this.scene);
-    const right = new Hand('right', this.renderer, this.scene);
-
     this.leftBar = new Bar(new THREE.Color('blue'));
     this.scene.add(this.leftBar);
 
@@ -65,7 +62,6 @@ export class Game {
       lastTs += dt;
       p.set(ev.clientX / 100, -ev.clientY / 100, 0);
       const motion = tracker.updateMotion(p, currentTs, dt);
-      console.log(JSON.stringify(motion));
       this.middleBar.setExtent(motion.velocity);
       this.middleBar2.setExtent(motion.acceleration);
     });

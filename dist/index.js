@@ -121,8 +121,6 @@ class Game {
     constructor() {
         this.renderer = new THREE.WebGLRenderer();
         this.scene = new THREE.Scene();
-        const left = new hand_1.Hand('left', this.renderer, this.scene);
-        const right = new hand_1.Hand('right', this.renderer, this.scene);
         this.leftBar = new bar_1.Bar(new THREE.Color('blue'));
         this.scene.add(this.leftBar);
         this.rightBar = new bar_1.Bar(new THREE.Color('red'));
@@ -155,7 +153,6 @@ class Game {
             lastTs += dt;
             p.set(ev.clientX / 100, -ev.clientY / 100, 0);
             const motion = tracker.updateMotion(p, currentTs, dt);
-            console.log(JSON.stringify(motion));
             this.middleBar.setExtent(motion.velocity);
             this.middleBar2.setExtent(motion.acceleration);
         });
@@ -237,10 +234,18 @@ class Hand {
         this.setUpMeshes();
     }
     setUpMeshes() {
-        const handGeometry = new THREE.BoxGeometry(0.02, 0.15, 0.20);
-        handGeometry.translate(0, 0, -0.20);
-        const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'orange', roughness: 0.9 }));
-        this.grip.add(handMesh);
+        {
+            const handGeometry = new THREE.BoxGeometry(0.01, 0.15, 0.20);
+            handGeometry.translate(0.005, 0, -0.20);
+            const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'midnightblue', roughness: 0.9 }));
+            this.grip.add(handMesh);
+        }
+        {
+            const handGeometry = new THREE.BoxGeometry(0.01, 0.15, 0.20);
+            handGeometry.translate(-0.005, 0, -0.20);
+            const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'royalblue', roughness: 0.9 }));
+            this.grip.add(handMesh);
+        }
         this.scene.add(this.grip);
     }
     updateMotion(elapsedS, deltaS) {
