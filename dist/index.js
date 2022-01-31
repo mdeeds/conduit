@@ -107,11 +107,13 @@ const bar_1 = __webpack_require__(825);
 const hand_1 = __webpack_require__(673);
 const VRButton_js_1 = __webpack_require__(652);
 const tracker_1 = __webpack_require__(163);
+const particleSystem_1 = __webpack_require__(564);
 class Game {
     scene;
     renderer;
     clock;
     camera;
+    particleSystem;
     leftBar;
     rightBar;
     middleBar;
@@ -141,6 +143,10 @@ class Game {
         this.rightHand = new hand_1.Hand('right', this.renderer, this.scene);
         this.setUpAnimation();
         this.setUpMouseBar();
+        this.particleSystem = new particleSystem_1.ParticleSystem(this.scene);
+        for (let i = 0; i < 1000; ++i) {
+            this.particleSystem.AddParticle(new THREE.Vector3(6 * (Math.random() - 0.5), 2 * (0.5 + Math.random()), 3 * Math.random() - 2), new THREE.Color('white'));
+        }
     }
     setUpMouseBar() {
         const body = document.querySelector('body');
@@ -168,6 +174,7 @@ class Game {
     animationLoop() {
         const deltaS = Math.min(this.clock.getDelta(), 0.1);
         this.elapsedS += deltaS;
+        this.particleSystem.step(this.camera, deltaS);
         this.renderer.render(this.scene, this.camera);
         const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
         this.leftBar.setExtent(leftMotion.velocity);
@@ -257,6 +264,158 @@ exports.Hand = Hand;
 
 /***/ }),
 
+/***/ 564:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ParticleSystem = void 0;
+const THREE = __importStar(__webpack_require__(578));
+class Particle {
+    position;
+    color;
+    currentSize;
+    rotation;
+    constructor(position, color, currentSize, rotation) {
+        this.position = position;
+        this.color = color;
+        this.currentSize = currentSize;
+        this.rotation = rotation;
+    }
+}
+class ParticleSystem {
+    static kVS = `
+uniform float pointMultiplier;
+attribute float size;
+attribute float angle;
+attribute vec4 colour;
+varying vec4 vColor;
+varying vec2 vAngle;
+void main() {
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+  gl_PointSize = size * pointMultiplier / gl_Position.w;
+  vAngle = vec2(cos(angle), sin(angle));
+  vColor = color;
+}`;
+    static kFS = `
+uniform sampler2D diffuseTexture;
+varying vec4 vColor;
+varying vec2 vAngle;
+void main() {
+  vec2 coords = (gl_PointCoord - 0.5) * mat2(vAngle.x, vAngle.y, -vAngle.y, vAngle.x) + 0.5;
+  gl_FragColor = texture2D(diffuseTexture, coords) * vColor;
+}`;
+    material;
+    particles = [];
+    geometry = new THREE.BufferGeometry();
+    points;
+    constructor(scene) {
+        const uniforms = {
+            diffuseTexture: {
+                value: new THREE.TextureLoader().load('./img/dot.png')
+            },
+            pointMultiplier: {
+                value: window.innerHeight / (2.0 * Math.tan(0.5 * 60.0 * Math.PI / 180.0))
+            }
+        };
+        this.material = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: ParticleSystem.kVS,
+            fragmentShader: ParticleSystem.kFS,
+            blending: THREE.AdditiveBlending,
+            depthTest: true,
+            depthWrite: false,
+            transparent: true,
+            vertexColors: true
+        });
+        this.geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+        this.geometry.setAttribute('size', new THREE.Float32BufferAttribute([], 1));
+        this.geometry.setAttribute('colour', new THREE.Float32BufferAttribute([], 4));
+        this.geometry.setAttribute('angle', new THREE.Float32BufferAttribute([], 1));
+        this.points = new THREE.Points(this.geometry, this.material);
+        scene.add(this.points);
+        // this._alphaSpline = new LinearSpline((t, a, b) => {
+        //   return a + t * (b - a);
+        // });
+        // this._alphaSpline.AddPoint(0.0, 0.0);
+        // this._alphaSpline.AddPoint(0.1, 1.0);
+        // this._alphaSpline.AddPoint(0.6, 1.0);
+        // this._alphaSpline.AddPoint(1.0, 0.0);
+        // this._colorSpline = new LinearSpline((t, a, b) => {
+        //   const c = a.clone();
+        //   return c.lerp(b, t);
+        // });
+        // this._colorSpline.AddPoint(0.0, new THREE.Color(0xFFFF80));
+        // this._colorSpline.AddPoint(1.0, new THREE.Color(0xFF8080));
+        // this._sizeSpline = new LinearSpline((t, a, b) => {
+        //   return a + t * (b - a);
+        // });
+        // this._sizeSpline.AddPoint(0.0, 1.0);
+        // this._sizeSpline.AddPoint(0.5, 5.0);
+        // this._sizeSpline.AddPoint(1.0, 1.0);
+        this.UpdateGeometry();
+    }
+    AddParticle(position, color) {
+        const colorVector = new THREE.Vector4(color.r, color.g, color.b, 0.5);
+        this.particles.push(new Particle(position, colorVector, Math.random() * 0.05, Math.random() * 2 * Math.PI));
+    }
+    UpdateGeometry() {
+        const positions = [];
+        const sizes = [];
+        const colors = [];
+        const angles = [];
+        for (let p of this.particles) {
+            positions.push(p.position.x, p.position.y, p.position.z);
+            colors.push(p.color.x, p.color.y, p.color.z, p.color.w);
+            sizes.push(p.currentSize);
+            angles.push(p.rotation);
+        }
+        this.geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        this.geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+        this.geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
+        this.geometry.setAttribute('angle', new THREE.Float32BufferAttribute(angles, 1));
+        this.geometry.attributes.position.needsUpdate = true;
+        this.geometry.attributes.size.needsUpdate = true;
+        this.geometry.attributes.color.needsUpdate = true;
+        this.geometry.attributes.angle.needsUpdate = true;
+    }
+    UpdateParticles(camera) {
+        // this.particles.sort((a, b) => {
+        //   const d1 = camera.position.distanceTo(a.position);
+        //   const d2 = camera.position.distanceTo(b.position);
+        //   return d2 - d1;
+        // });
+    }
+    step(camera, deltaS) {
+        this.UpdateParticles(camera);
+        this.UpdateGeometry();
+    }
+}
+exports.ParticleSystem = ParticleSystem;
+//# sourceMappingURL=particleSystem.js.map
+
+/***/ }),
+
 /***/ 871:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -332,7 +491,7 @@ class S {
     static cache = new Map();
     static default = new Map();
     static {
-        S.default.set('m', 1.0);
+        S.default.set('m', 0.5); // 0.5 is good for velocity tracking.
     }
     static float(name) {
         if (S.cache.has(name)) {

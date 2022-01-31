@@ -3,12 +3,14 @@ import { Bar } from "./bar";
 import { Hand } from "./hand";
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { Tracker } from "./tracker";
+import { ParticleSystem } from "./particleSystem";
 
 export class Game {
   private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
   private clock: THREE.Clock;
   private camera: THREE.Camera;
+  private particleSystem: ParticleSystem;
 
   private leftBar: Bar;
   private rightBar: Bar;
@@ -48,6 +50,15 @@ export class Game {
 
     this.setUpAnimation();
     this.setUpMouseBar();
+
+
+    this.particleSystem = new ParticleSystem(this.scene);
+    for (let i = 0; i < 1000; ++i) {
+      this.particleSystem.AddParticle(
+        new THREE.Vector3(6 * (Math.random() - 0.5),
+          2 * (0.5 + Math.random()), 3 * Math.random() - 2),
+        new THREE.Color('white'));
+    }
   }
 
   private setUpMouseBar() {
@@ -79,6 +90,9 @@ export class Game {
   private animationLoop() {
     const deltaS = Math.min(this.clock.getDelta(), 0.1);
     this.elapsedS += deltaS;
+
+    this.particleSystem.step(this.camera, deltaS);
+
     this.renderer.render(this.scene, this.camera);
 
     const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
