@@ -89,7 +89,6 @@ export class Game {
     this.leftBar.setExtent(leftMotion.velocity);
     const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
     this.rightBar.setExtent(rightMotion.velocity);
-
   }
   private setUpAnimation() {
     this.clock = new THREE.Clock();

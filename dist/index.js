@@ -40,6 +40,9 @@ class Bar extends THREE.Object3D {
             color: color
         }));
         this.add(mesh);
+        this.position.set(0, 0, 0);
+        this.rotation.set(0, 0, 0);
+        this.updateMatrix();
     }
     static zero = new THREE.Vector3(0, 0, 0);
     m = new THREE.Matrix4();
@@ -234,7 +237,7 @@ class Hand {
         this.setUpMeshes();
     }
     setUpMeshes() {
-        const handGeometry = new THREE.BoxGeometry(0.15, 0.02, 0.20);
+        const handGeometry = new THREE.BoxGeometry(0.02, 0.15, 0.20);
         handGeometry.translate(0, 0, -0.20);
         const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'orange', roughness: 0.9 }));
         this.grip.add(handMesh);
@@ -397,13 +400,19 @@ class Tracker {
         {
             const t0 = this.positionBuffer.get(0, this.p0);
             const t1 = this.positionBuffer.get(1, this.p1);
+            if (t1 === t0) {
+                return this.motion;
+            }
             this.motion.velocity.copy(this.p0);
             this.motion.velocity.sub(this.p1);
             this.motion.velocity.multiplyScalar(1 / (t0 - t1));
-            this.velocityBuffer.add(this.motion.velocity, elapsedS - (deltaS / 2));
+            this.velocityBuffer.add(this.motion.velocity, (t0 + t1) / 2);
         }
         const t0 = this.velocityBuffer.get(0, this.v0);
         const t1 = this.velocityBuffer.get(1, this.v1);
+        if (t1 === t0) {
+            return this.motion;
+        }
         this.motion.acceleration.copy(this.v0);
         this.motion.acceleration.sub(this.v1);
         this.motion.acceleration.multiplyScalar(1 / (t0 - t1));

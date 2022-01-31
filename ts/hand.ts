@@ -23,7 +23,7 @@ export class Hand {
   }
 
   private setUpMeshes() {
-    const handGeometry = new THREE.BoxGeometry(0.15, 0.02, 0.20);
+    const handGeometry = new THREE.BoxGeometry(0.02, 0.15, 0.20);
     handGeometry.translate(0, 0, -0.20);
     const handMesh = new THREE.Mesh(handGeometry,
       new THREE.MeshStandardMaterial(

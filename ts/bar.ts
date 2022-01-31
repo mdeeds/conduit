@@ -13,6 +13,9 @@ export class Bar extends THREE.Object3D {
       color: color
     }))
     this.add(mesh);
+    this.position.set(0, 0, 0);
+    this.rotation.set(0, 0, 0);
+    this.updateMatrix();
   }
 
   private static zero = new THREE.Vector3(0, 0, 0);
@@ -46,5 +49,4 @@ export class Bar extends THREE.Object3D {
       this.scale.set(1, this.v.length(), 1);
     }
   }
-
 }
