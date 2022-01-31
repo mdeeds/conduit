@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Bar } from "./bar";
 import { Hand } from "./hand";
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
+import { Tracker } from "./tracker";
 
 export class Game {
   private scene: THREE.Scene;
@@ -11,6 +12,8 @@ export class Game {
 
   private leftBar: Bar;
   private rightBar: Bar;
+  private middleBar: Bar;
+  private middleBar2: Bar;
 
   private leftHand: Hand;
   private rightHand: Hand;
@@ -27,6 +30,11 @@ export class Game {
     this.rightBar = new Bar(new THREE.Color('red'));
     this.scene.add(this.rightBar);
 
+    this.middleBar = new Bar(new THREE.Color('green'));
+    this.scene.add(this.middleBar);
+    this.middleBar2 = new Bar(new THREE.Color('white'));
+    this.scene.add(this.middleBar2);
+
     this.camera = new THREE.PerspectiveCamera(
       75, window.innerWidth / window.innerHeight, /*near=*/0.1,
       /*far=*/100);
@@ -42,6 +50,27 @@ export class Game {
     this.rightHand = new Hand('right', this.renderer, this.scene);
 
     this.setUpAnimation();
+    this.setUpMouseBar();
+  }
+
+  private setUpMouseBar() {
+    const body = document.querySelector('body');
+    let lastTs = window.performance.now();
+    const p = new THREE.Vector3();
+    const tracker = new Tracker();
+
+    body.addEventListener('mousemove', (ev: MouseEvent) => {
+      const currentTs = window.performance.now();
+      const dt = currentTs - lastTs;
+      lastTs += dt;
+      p.set(ev.clientX / 10, -ev.clientY / 10, 0);
+      const motion = tracker.updateMotion(p, currentTs, dt);
+      console.log(JSON.stringify(motion));
+      this.middleBar.setExtent(motion.velocity);
+      p.copy(motion.acceleration);
+      p.multiplyScalar(50);
+      this.middleBar2.setExtent(p);
+    });
   }
 
   private setUpRenderer() {
@@ -58,9 +87,9 @@ export class Game {
     this.elapsedS += deltaS;
     this.renderer.render(this.scene, this.camera);
 
-    const leftMotion = this.leftHand.updateMotion(deltaS);
+    const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
     this.leftBar.setExtent(leftMotion.velocity);
-    const rightMotion = this.rightHand.updateMotion(deltaS);
+    const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
     this.rightBar.setExtent(rightMotion.velocity);
 
   }

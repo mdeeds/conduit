@@ -33,14 +33,16 @@ export class Bar extends THREE.Object3D {
     this.applyMatrix4(this.orientation);
   }
 
-
-
   public setExtent(v: THREE.Vector3) {
-    // this.m.lookAt(Bar.zero, v, this.up);
-    // this.matrix.makeScale(1, v.length(), 1);
-    // this.matrix.multiply(this.m);
-    this.updatePole(Bar.zero, v);
-    this.scale.set(1, v.length(), 1);
+    if (v.length() === 0) {
+      this.scale.set(0.1, 0.1, 0.1);
+    } else {
+      // this.m.lookAt(Bar.zero, v, this.up);
+      // this.matrix.makeScale(1, v.length(), 1);
+      // this.matrix.multiply(this.m);
+      this.updatePole(Bar.zero, v);
+      this.scale.set(1, v.length(), 1);
+    }
   }
 
 }

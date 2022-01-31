@@ -56,11 +56,16 @@ class Bar extends THREE.Object3D {
         this.applyMatrix4(this.orientation);
     }
     setExtent(v) {
-        // this.m.lookAt(Bar.zero, v, this.up);
-        // this.matrix.makeScale(1, v.length(), 1);
-        // this.matrix.multiply(this.m);
-        this.updatePole(Bar.zero, v);
-        this.scale.set(1, v.length(), 1);
+        if (v.length() === 0) {
+            this.scale.set(0.1, 0.1, 0.1);
+        }
+        else {
+            // this.m.lookAt(Bar.zero, v, this.up);
+            // this.matrix.makeScale(1, v.length(), 1);
+            // this.matrix.multiply(this.m);
+            this.updatePole(Bar.zero, v);
+            this.scale.set(1, v.length(), 1);
+        }
     }
 }
 exports.Bar = Bar;
@@ -97,6 +102,7 @@ const THREE = __importStar(__webpack_require__(578));
 const bar_1 = __webpack_require__(825);
 const hand_1 = __webpack_require__(673);
 const VRButton_js_1 = __webpack_require__(652);
+const tracker_1 = __webpack_require__(163);
 class Game {
     scene;
     renderer;
@@ -104,6 +110,8 @@ class Game {
     camera;
     leftBar;
     rightBar;
+    middleBar;
+    middleBar2;
     leftHand;
     rightHand;
     constructor() {
@@ -115,6 +123,10 @@ class Game {
         this.scene.add(this.leftBar);
         this.rightBar = new bar_1.Bar(new THREE.Color('red'));
         this.scene.add(this.rightBar);
+        this.middleBar = new bar_1.Bar(new THREE.Color('green'));
+        this.scene.add(this.middleBar);
+        this.middleBar2 = new bar_1.Bar(new THREE.Color('white'));
+        this.scene.add(this.middleBar2);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, /*near=*/ 0.1, 
         /*far=*/ 100);
         this.camera.position.set(0, 1.6, 3);
@@ -126,6 +138,25 @@ class Game {
         this.leftHand = new hand_1.Hand('left', this.renderer, this.scene);
         this.rightHand = new hand_1.Hand('right', this.renderer, this.scene);
         this.setUpAnimation();
+        this.setUpMouseBar();
+    }
+    setUpMouseBar() {
+        const body = document.querySelector('body');
+        let lastTs = window.performance.now();
+        const p = new THREE.Vector3();
+        const tracker = new tracker_1.Tracker();
+        body.addEventListener('mousemove', (ev) => {
+            const currentTs = window.performance.now();
+            const dt = currentTs - lastTs;
+            lastTs += dt;
+            p.set(ev.clientX / 10, -ev.clientY / 10, 0);
+            const motion = tracker.updateMotion(p, currentTs, dt);
+            console.log(JSON.stringify(motion));
+            this.middleBar.setExtent(motion.velocity);
+            p.copy(motion.acceleration);
+            p.multiplyScalar(50);
+            this.middleBar2.setExtent(p);
+        });
     }
     setUpRenderer() {
         this.renderer.shadowMap.enabled = true;
@@ -139,9 +170,9 @@ class Game {
         const deltaS = Math.min(this.clock.getDelta(), 0.1);
         this.elapsedS += deltaS;
         this.renderer.render(this.scene, this.camera);
-        const leftMotion = this.leftHand.updateMotion(deltaS);
+        const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
         this.leftBar.setExtent(leftMotion.velocity);
-        const rightMotion = this.rightHand.updateMotion(deltaS);
+        const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
         this.rightBar.setExtent(rightMotion.velocity);
     }
     setUpAnimation() {
@@ -180,23 +211,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Hand = exports.Motion = void 0;
+exports.Hand = void 0;
 const THREE = __importStar(__webpack_require__(578));
-const rollingVectorBuffer_1 = __webpack_require__(871);
-class Motion {
-    position = new THREE.Vector3();
-    velocity = new THREE.Vector3();
-    acceleration = new THREE.Vector3();
-    constructor() { }
-}
-exports.Motion = Motion;
+const tracker_1 = __webpack_require__(163);
 class Hand {
     side;
     scene;
     gamepad;
     grip;
-    motion = new Motion();
-    buffer = new rollingVectorBuffer_1.RollingVectorBuffer(5);
+    tracker = new tracker_1.Tracker();
     constructor(side, renderer, scene) {
         this.side = side;
         this.scene = scene;
@@ -213,33 +236,13 @@ class Hand {
     }
     setUpMeshes() {
         const handGeometry = new THREE.BoxGeometry(0.15, 0.02, 0.20);
-        handGeometry.translate(0, 0, 0.20);
+        handGeometry.translate(0, 0, -0.20);
         const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'orange', roughness: 0.9 }));
-        handMesh.castShadow = true;
-        handMesh.receiveShadow = true;
         this.grip.add(handMesh);
         this.scene.add(this.grip);
     }
-    p0 = new THREE.Vector3();
-    p1 = new THREE.Vector3();
-    p2 = new THREE.Vector3();
-    v0 = new THREE.Vector3();
-    v1 = new THREE.Vector3();
-    updateMotion(deltaS) {
-        this.motion.position.copy(this.grip.position);
-        this.buffer.add(this.motion.position);
-        this.buffer.get(0, this.p0);
-        this.buffer.get(1, this.p1);
-        this.buffer.get(2, this.p2);
-        this.motion.velocity.copy(this.p0);
-        this.motion.velocity.sub(this.p1);
-        this.motion.velocity.multiplyScalar(1 / deltaS);
-        this.v1.copy(this.p1);
-        this.v1.sub(this.p2);
-        this.v1.multiplyScalar(1 / deltaS);
-        this.motion.acceleration.copy(this.motion.velocity);
-        this.motion.acceleration.sub(this.v1);
-        return this.motion;
+    updateMotion(elapsedS, deltaS) {
+        return this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
     }
 }
 exports.Hand = Hand;
@@ -276,28 +279,107 @@ const THREE = __importStar(__webpack_require__(578));
 class RollingVectorBuffer {
     size;
     buffer = [];
+    timeBuffer = [];
     last = -1;
     constructor(size) {
         this.size = size;
         for (let i = 0; i < size; ++i) {
             this.buffer.push(new THREE.Vector3());
+            this.timeBuffer.push(0);
         }
     }
-    addXYZ(x, y, z) {
+    addXYZ(x, y, z, ts) {
+        if (ts - this.timeBuffer[this.last] < 10) {
+            return;
+        }
         this.last = (this.last + 1) % this.size;
         this.buffer[this.last].set(x, y, z);
+        this.timeBuffer[this.last] = ts;
     }
-    add(v) {
+    add(v, ts) {
+        if (ts - this.timeBuffer[this.last] < 10) {
+            return;
+        }
         this.last = (this.last + 1) % this.size;
         this.buffer[this.last].copy(v);
+        this.timeBuffer[this.last] = ts;
     }
     get(i, out) {
         const index = (this.last + i) % this.size;
         out.copy(this.buffer[index]);
+        return this.timeBuffer[index];
     }
 }
 exports.RollingVectorBuffer = RollingVectorBuffer;
 //# sourceMappingURL=rollingVectorBuffer.js.map
+
+/***/ }),
+
+/***/ 163:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Tracker = exports.Motion = void 0;
+const THREE = __importStar(__webpack_require__(578));
+const rollingVectorBuffer_1 = __webpack_require__(871);
+class Motion {
+    position = new THREE.Vector3();
+    velocity = new THREE.Vector3();
+    acceleration = new THREE.Vector3();
+    constructor() { }
+}
+exports.Motion = Motion;
+class Tracker {
+    positionBuffer = new rollingVectorBuffer_1.RollingVectorBuffer(5);
+    velocityBuffer = new rollingVectorBuffer_1.RollingVectorBuffer(5);
+    motion = new Motion();
+    constructor() {
+    }
+    p0 = new THREE.Vector3();
+    p1 = new THREE.Vector3();
+    v0 = new THREE.Vector3();
+    v1 = new THREE.Vector3();
+    updateMotion(position, elapsedS, deltaS) {
+        this.motion.position.copy(position);
+        this.positionBuffer.add(this.motion.position, elapsedS);
+        {
+            const t0 = this.positionBuffer.get(0, this.p0);
+            const t1 = this.positionBuffer.get(1, this.p1);
+            this.motion.velocity.copy(this.p0);
+            this.motion.velocity.sub(this.p1);
+            this.motion.velocity.multiplyScalar(1 / (t0 - t1));
+            this.velocityBuffer.add(this.motion.velocity, elapsedS - (deltaS / 2));
+        }
+        const t0 = this.velocityBuffer.get(0, this.v0);
+        const t1 = this.velocityBuffer.get(1, this.v1);
+        this.motion.acceleration.copy(this.v0);
+        this.motion.acceleration.sub(this.v1);
+        this.motion.acceleration.multiplyScalar(1 / (t0 - t1));
+        return this.motion;
+    }
+}
+exports.Tracker = Tracker;
+//# sourceMappingURL=tracker.js.map
 
 /***/ }),
 

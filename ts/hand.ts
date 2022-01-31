@@ -1,20 +1,12 @@
 import * as THREE from "three";
-import { RollingVectorBuffer } from "./rollingVectorBuffer";
+import { Motion, Tracker } from "./tracker";
 
 export type Side = 'left' | 'right';
-
-export class Motion {
-  public position = new THREE.Vector3();
-  public velocity = new THREE.Vector3();
-  public acceleration = new THREE.Vector3();
-  constructor() { }
-}
 
 export class Hand {
   readonly gamepad: Gamepad;
   private grip: THREE.Group;
-  private motion = new Motion();
-  private buffer = new RollingVectorBuffer(5);
+  public tracker = new Tracker();
 
   constructor(readonly side: Side, renderer: THREE.WebGLRenderer,
     private scene: THREE.Object3D) {
@@ -32,39 +24,16 @@ export class Hand {
 
   private setUpMeshes() {
     const handGeometry = new THREE.BoxGeometry(0.15, 0.02, 0.20);
-    handGeometry.translate(0, 0, 0.20);
+    handGeometry.translate(0, 0, -0.20);
     const handMesh = new THREE.Mesh(handGeometry,
       new THREE.MeshStandardMaterial(
         { color: 'orange', roughness: 0.9 }));
-    handMesh.castShadow = true;
-    handMesh.receiveShadow = true;
 
     this.grip.add(handMesh);
     this.scene.add(this.grip);
   }
 
-  private p0 = new THREE.Vector3();
-  private p1 = new THREE.Vector3();
-  private p2 = new THREE.Vector3();
-  private v0 = new THREE.Vector3();
-  private v1 = new THREE.Vector3();
-
-  public updateMotion(deltaS: number): Motion {
-    this.motion.position.copy(this.grip.position);
-    this.buffer.add(this.motion.position);
-    this.buffer.get(0, this.p0);
-    this.buffer.get(1, this.p1);
-    this.buffer.get(2, this.p2);
-    this.motion.velocity.copy(this.p0);
-    this.motion.velocity.sub(this.p1);
-    this.motion.velocity.multiplyScalar(1 / deltaS);
-    this.v1.copy(this.p1);
-    this.v1.sub(this.p2);
-    this.v1.multiplyScalar(1 / deltaS);
-    this.motion.acceleration.copy(this.motion.velocity);
-    this.motion.acceleration.sub(this.v1);
-    return this.motion;
+  public updateMotion(elapsedS: number, deltaS: number): Motion {
+    return this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
   }
-
-
 }
