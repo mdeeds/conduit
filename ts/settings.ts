@@ -3,7 +3,7 @@ export class S {
   private static default = new Map<string, number>();
 
   static {
-    S.default.set('m', 1.0);
+    S.default.set('m', 0.5);  // 0.5 is good for velocity tracking.
   }
 
   public static float(name: string): number {
