@@ -99,14 +99,14 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
 
     const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
-    this.leftBar.setExtent(leftMotion.velocity);
+    this.leftBar.setExtent(leftMotion.acceleration);
     const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
-    this.rightBar.setExtent(rightMotion.velocity);
-    if (Math.random() < 0.1 && leftMotion.velocity.length() > 0.2) {
+    this.rightBar.setExtent(rightMotion.acceleration);
+    if (Math.random() < 0.5 && leftMotion.velocity.length() > 0.3) {
       this.particleSystem.AddParticle(
         leftMotion.position, leftMotion.velocity, new THREE.Color('blue'));
     }
-    if (Math.random() < 0.1 && rightMotion.velocity.length() > 0.2) {
+    if (Math.random() < 0.5 && rightMotion.velocity.length() > 0.3) {
       this.particleSystem.AddParticle(
         rightMotion.position, rightMotion.velocity, new THREE.Color('red'));
     }
