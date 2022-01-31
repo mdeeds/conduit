@@ -54,10 +54,13 @@ export class Game {
 
     this.particleSystem = new ParticleSystem(this.scene);
     for (let i = 0; i < 1000; ++i) {
-      this.particleSystem.AddParticle(
-        new THREE.Vector3(6 * (Math.random() - 0.5),
-          2 * (0.5 + Math.random()), 3 * Math.random() - 2),
-        new THREE.Color('white'));
+      const p = new THREE.Vector3(6 * (Math.random() - 0.5),
+        2 * (0.5 + Math.random()), 3 * Math.random() - 2);
+      const v = new THREE.Vector3(
+        0.1 * (Math.random() - 0.5),
+        0.1 * (Math.random() - 0.5),
+        0.1 * (Math.random() - 0.5));
+      this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
     }
   }
 
@@ -99,6 +102,14 @@ export class Game {
     this.leftBar.setExtent(leftMotion.velocity);
     const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
     this.rightBar.setExtent(rightMotion.velocity);
+    if (Math.random() < 0.1 && leftMotion.velocity.length() > 0.2) {
+      this.particleSystem.AddParticle(
+        leftMotion.position, leftMotion.velocity, new THREE.Color('blue'));
+    }
+    if (Math.random() < 0.1 && rightMotion.velocity.length() > 0.2) {
+      this.particleSystem.AddParticle(
+        rightMotion.position, rightMotion.velocity, new THREE.Color('red'));
+    }
   }
   private setUpAnimation() {
     this.clock = new THREE.Clock();

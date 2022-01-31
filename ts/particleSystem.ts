@@ -3,9 +3,11 @@ import * as THREE from "three";
 class Particle {
   constructor(
     readonly position: THREE.Vector3,
+    readonly velocity: THREE.Vector3,
     readonly color: THREE.Vector4,
     readonly currentSize: number,
-    readonly rotation: number
+    readonly rotation: number,
+    public lifeS: number,
   ) { }
 }
 
@@ -94,12 +96,17 @@ void main() {
     this.UpdateGeometry();
   }
 
-  AddParticle(position: THREE.Vector3, color: THREE.Color) {
+  AddParticle(position: THREE.Vector3, velocity: THREE.Vector3,
+    color: THREE.Color) {
+    const p = new THREE.Vector3();
+    p.copy(position);
+    const v = new THREE.Vector3();
+    v.copy(velocity);
     const colorVector = new THREE.Vector4(color.r, color.g, color.b, 0.5);
     this.particles.push(new Particle(
-      position, colorVector,
+      p, v, colorVector,
       Math.random() * 0.05,
-      Math.random() * 2 * Math.PI));
+      Math.random() * 2 * Math.PI, 10));
   }
 
   private UpdateGeometry() {
@@ -130,7 +137,25 @@ void main() {
     this.geometry.attributes.angle.needsUpdate = true;
   }
 
-  private UpdateParticles(camera: THREE.Camera) {
+  private v = new THREE.Vector3();
+  private UpdateParticles(camera: THREE.Camera, deltaS: number) {
+    for (const p of this.particles) {
+      this.v.copy(p.velocity);
+      this.v.multiplyScalar(deltaS);
+      p.position.add(this.v);
+      p.lifeS -= deltaS;
+    }
+
+    let numDeleted = 0;
+    for (let i = 0; i < this.particles.length; ++i) {
+      if (this.particles[i].lifeS < 0) {
+        numDeleted++;
+      } else {
+        this.particles[i - numDeleted] = this.particles[i];
+      }
+    }
+
+    this.particles.splice(this.particles.length - numDeleted);
     // this.particles.sort((a, b) => {
     //   const d1 = camera.position.distanceTo(a.position);
     //   const d2 = camera.position.distanceTo(b.position);
@@ -139,7 +164,7 @@ void main() {
   }
 
   step(camera: THREE.Camera, deltaS: number) {
-    this.UpdateParticles(camera);
+    this.UpdateParticles(camera, deltaS);
     this.UpdateGeometry();
   }
 }

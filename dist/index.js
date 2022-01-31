@@ -145,7 +145,9 @@ class Game {
         this.setUpMouseBar();
         this.particleSystem = new particleSystem_1.ParticleSystem(this.scene);
         for (let i = 0; i < 1000; ++i) {
-            this.particleSystem.AddParticle(new THREE.Vector3(6 * (Math.random() - 0.5), 2 * (0.5 + Math.random()), 3 * Math.random() - 2), new THREE.Color('white'));
+            const p = new THREE.Vector3(6 * (Math.random() - 0.5), 2 * (0.5 + Math.random()), 3 * Math.random() - 2);
+            const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5));
+            this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
         }
     }
     setUpMouseBar() {
@@ -180,6 +182,12 @@ class Game {
         this.leftBar.setExtent(leftMotion.velocity);
         const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
         this.rightBar.setExtent(rightMotion.velocity);
+        if (Math.random() < 0.1 && leftMotion.velocity.length() > 0.2) {
+            this.particleSystem.AddParticle(leftMotion.position, leftMotion.velocity, new THREE.Color('blue'));
+        }
+        if (Math.random() < 0.1 && rightMotion.velocity.length() > 0.2) {
+            this.particleSystem.AddParticle(rightMotion.position, rightMotion.velocity, new THREE.Color('red'));
+        }
     }
     setUpAnimation() {
         this.clock = new THREE.Clock();
@@ -292,14 +300,18 @@ exports.ParticleSystem = void 0;
 const THREE = __importStar(__webpack_require__(578));
 class Particle {
     position;
+    velocity;
     color;
     currentSize;
     rotation;
-    constructor(position, color, currentSize, rotation) {
+    lifeS;
+    constructor(position, velocity, color, currentSize, rotation, lifeS) {
         this.position = position;
+        this.velocity = velocity;
         this.color = color;
         this.currentSize = currentSize;
         this.rotation = rotation;
+        this.lifeS = lifeS;
     }
 }
 class ParticleSystem {
@@ -375,9 +387,13 @@ void main() {
         // this._sizeSpline.AddPoint(1.0, 1.0);
         this.UpdateGeometry();
     }
-    AddParticle(position, color) {
+    AddParticle(position, velocity, color) {
+        const p = new THREE.Vector3();
+        p.copy(position);
+        const v = new THREE.Vector3();
+        v.copy(velocity);
         const colorVector = new THREE.Vector4(color.r, color.g, color.b, 0.5);
-        this.particles.push(new Particle(position, colorVector, Math.random() * 0.05, Math.random() * 2 * Math.PI));
+        this.particles.push(new Particle(p, v, colorVector, Math.random() * 0.05, Math.random() * 2 * Math.PI, 10));
     }
     UpdateGeometry() {
         const positions = [];
@@ -399,7 +415,24 @@ void main() {
         this.geometry.attributes.color.needsUpdate = true;
         this.geometry.attributes.angle.needsUpdate = true;
     }
-    UpdateParticles(camera) {
+    v = new THREE.Vector3();
+    UpdateParticles(camera, deltaS) {
+        for (const p of this.particles) {
+            this.v.copy(p.velocity);
+            this.v.multiplyScalar(deltaS);
+            p.position.add(this.v);
+            p.lifeS -= deltaS;
+        }
+        let numDeleted = 0;
+        for (let i = 0; i < this.particles.length; ++i) {
+            if (this.particles[i].lifeS < 0) {
+                numDeleted++;
+            }
+            else {
+                this.particles[i - numDeleted] = this.particles[i];
+            }
+        }
+        this.particles.splice(this.particles.length - numDeleted);
         // this.particles.sort((a, b) => {
         //   const d1 = camera.position.distanceTo(a.position);
         //   const d2 = camera.position.distanceTo(b.position);
@@ -407,7 +440,7 @@ void main() {
         // });
     }
     step(camera, deltaS) {
-        this.UpdateParticles(camera);
+        this.UpdateParticles(camera, deltaS);
         this.UpdateGeometry();
     }
 }
