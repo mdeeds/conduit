@@ -108,7 +108,9 @@ const hand_1 = __webpack_require__(673);
 const VRButton_js_1 = __webpack_require__(652);
 const tracker_1 = __webpack_require__(163);
 const particleSystem_1 = __webpack_require__(564);
+const synth_1 = __webpack_require__(671);
 class Game {
+    audioCtx;
     scene;
     renderer;
     clock;
@@ -120,7 +122,16 @@ class Game {
     middleBar2;
     leftHand;
     rightHand;
-    constructor() {
+    synth;
+    constructor(audioCtx) {
+        this.audioCtx = audioCtx;
+        this.synth = new synth_1.Synth(audioCtx);
+        document.querySelector('body').addEventListener('keydown', (ev) => {
+            if (ev.code === 'Space') {
+                console.log('Trigger');
+                this.synth.pluck();
+            }
+        });
         this.renderer = new THREE.WebGLRenderer();
         this.scene = new THREE.Scene();
         this.leftBar = new bar_1.Bar(new THREE.Color('blue'));
@@ -139,16 +150,11 @@ class Game {
         const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         this.scene.add(light);
         this.setUpRenderer();
-        this.leftHand = new hand_1.Hand('left', this.renderer, this.scene);
-        this.rightHand = new hand_1.Hand('right', this.renderer, this.scene);
+        this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.synth);
+        this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.synth);
         this.setUpAnimation();
         this.setUpMouseBar();
         this.particleSystem = new particleSystem_1.ParticleSystem(this.scene);
-        for (let i = 0; i < 1000; ++i) {
-            const p = new THREE.Vector3(6 * (Math.random() - 0.5), 2 * (0.5 + Math.random()), 3 * Math.random() - 2);
-            const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5));
-            this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
-        }
     }
     setUpMouseBar() {
         const body = document.querySelector('body');
@@ -183,6 +189,11 @@ class Game {
             case 'point': return this.pointColor;
         }
     }
+    addRandomDot() {
+        const p = new THREE.Vector3(6 * (Math.random() - 0.5), 2 * (0.5 + Math.random()), 3 * Math.random() - 2);
+        const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5));
+        this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
+    }
     animationLoop() {
         const deltaS = Math.min(this.clock.getDelta(), 0.1);
         this.elapsedS += deltaS;
@@ -192,12 +203,15 @@ class Game {
         this.leftBar.setExtent(leftMotion.acceleration);
         const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
         this.rightBar.setExtent(rightMotion.acceleration);
-        if (10 * Math.random() < leftMotion.acceleration.length() && leftMotion.velocity.length() > 0.3) {
+        if (10 * Math.random() < leftMotion.acceleration.length() &&
+            leftMotion.velocity.length() > 0.3) {
             this.particleSystem.AddParticle(leftMotion.position, leftMotion.velocity, this.getColorForState(this.leftHand.getState()));
         }
-        if (10 * Math.random() < rightMotion.acceleration.length() && rightMotion.velocity.length() > 0.3) {
+        if (10 * Math.random() < rightMotion.acceleration.length() &&
+            rightMotion.velocity.length() > 0.3) {
             this.particleSystem.AddParticle(rightMotion.position, rightMotion.velocity, this.getColorForState(this.rightHand.getState()));
         }
+        this.addRandomDot();
     }
     setUpAnimation() {
         this.clock = new THREE.Clock();
@@ -237,17 +251,21 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Hand = void 0;
 const THREE = __importStar(__webpack_require__(578));
+const settings_1 = __webpack_require__(451);
 const tracker_1 = __webpack_require__(163);
 class Hand {
     side;
     scene;
+    synth;
     gamepad;
     grip;
     tracker = new tracker_1.Tracker();
     state;
-    constructor(side, renderer, scene) {
+    pluckThreshold = -settings_1.S.float('p');
+    constructor(side, renderer, scene, synth) {
         this.side = side;
         this.scene = scene;
+        this.synth = synth;
         const index = (side == 'left') ? 0 : 1;
         this.grip = renderer.xr.getControllerGrip(index);
         // this.grip = new THREE.Group();
@@ -262,19 +280,30 @@ class Hand {
     setUpMeshes() {
         {
             const handGeometry = new THREE.BoxGeometry(0.01, 0.15, 0.20);
-            handGeometry.translate(0.005, 0, -0.20);
+            if (this.side === 'left') {
+                handGeometry.translate(-0.005, 0, -0.20);
+            }
+            else {
+                handGeometry.translate(0.005, 0, -0.20);
+            }
             const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'midnightblue', roughness: 0.9 }));
             this.grip.add(handMesh);
         }
         {
             const handGeometry = new THREE.BoxGeometry(0.01, 0.15, 0.20);
-            handGeometry.translate(-0.005, 0, -0.20);
+            if (this.side === 'left') {
+                handGeometry.translate(0.005, 0, -0.20);
+            }
+            else {
+                handGeometry.translate(-0.005, 0, -0.20);
+            }
             const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'royalblue', roughness: 0.9 }));
             this.grip.add(handMesh);
         }
         this.scene.add(this.grip);
     }
     getState() { return this.state; }
+    v = new THREE.Vector3();
     updateMotion(elapsedS, deltaS) {
         this.grip.updateMatrix();
         const xx = this.grip.matrix.elements[0];
@@ -288,7 +317,16 @@ class Hand {
         else {
             this.state = 'softer';
         }
-        return this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
+        const motion = this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
+        if (this.state === 'point') {
+            this.v.copy(motion.velocity);
+            this.v.normalize();
+            const goRate = motion.acceleration.dot(this.v);
+            if (goRate < this.pluckThreshold) {
+                this.synth.pluck();
+            }
+        }
+        return motion;
     }
 }
 exports.Hand = Hand;
@@ -551,6 +589,7 @@ class S {
         S.default.set('m', 0.5); // 0.5 is good for velocity tracking.
         S.default.set('mv', 0.5);
         S.default.set('ma', 0.05);
+        S.default.set('p', 0.2);
     }
     static float(name) {
         if (S.cache.has(name)) {
@@ -570,6 +609,60 @@ class S {
 }
 exports.S = S;
 //# sourceMappingURL=settings.js.map
+
+/***/ }),
+
+/***/ 671:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Synth = void 0;
+class ADSR {
+    audioCtx;
+    param;
+    attack = 0;
+    decay = 0;
+    sustain = 1;
+    release = 0;
+    constructor(audioCtx, param) {
+        this.audioCtx = audioCtx;
+        this.param = param;
+    }
+    triggerAndRelease(durationS) {
+        let t = this.audioCtx.currentTime;
+        t += this.attack;
+        this.param.linearRampToValueAtTime(1.0, t);
+        t += this.decay;
+        this.param.linearRampToValueAtTime(this.sustain, t);
+        t += durationS;
+        this.param.linearRampToValueAtTime(this.sustain, t);
+        t += this.release;
+        this.param.linearRampToValueAtTime(0, t);
+    }
+}
+class Synth {
+    audioCtx;
+    sawOsc;
+    sawGain;
+    env1;
+    constructor(audioCtx) {
+        this.audioCtx = audioCtx;
+        this.sawOsc = audioCtx.createOscillator();
+        this.sawOsc.type = 'sawtooth';
+        this.sawGain = audioCtx.createGain();
+        this.sawGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        this.sawOsc.connect(this.sawGain);
+        this.sawGain.connect(this.audioCtx.destination);
+        this.sawOsc.start();
+        this.env1 = new ADSR(this.audioCtx, this.sawGain.gain);
+    }
+    pluck() {
+        this.env1.triggerAndRelease(0.5);
+    }
+}
+exports.Synth = Synth;
+//# sourceMappingURL=synth.js.map
 
 /***/ }),
 
@@ -51091,7 +51184,25 @@ var __webpack_unused_export__;
 
 __webpack_unused_export__ = ({ value: true });
 const game_1 = __webpack_require__(417);
-new game_1.Game();
+async function getAudioContext() {
+    const body = document.querySelector('body');
+    const div = document.createElement('div');
+    div.innerHTML = '<div>Conduct your destiny.</div>' +
+        '<div>Be the conduit.</div>' +
+        '<div>Click to begin</div>';
+    div.classList.add('begin');
+    body.appendChild(div);
+    return new Promise((resolve) => {
+        div.addEventListener('click', (ev) => {
+            div.remove();
+            resolve(new window.AudioContext());
+        });
+    });
+}
+async function go() {
+    new game_1.Game(await getAudioContext());
+}
+go();
 //# sourceMappingURL=index.js.map
 })();
 

@@ -28,7 +28,7 @@ export class Game {
     document.querySelector('body').addEventListener('keydown', (ev) => {
       if (ev.code === 'Space') {
         console.log('Trigger');
-        this.synth.trigger();
+        this.synth.pluck();
       }
     });
 
@@ -56,8 +56,8 @@ export class Game {
     this.scene.add(light);
 
     this.setUpRenderer();
-    this.leftHand = new Hand('left', this.renderer, this.scene);
-    this.rightHand = new Hand('right', this.renderer, this.scene);
+    this.leftHand = new Hand('left', this.renderer, this.scene, this.synth);
+    this.rightHand = new Hand('right', this.renderer, this.scene, this.synth);
 
     this.setUpAnimation();
     this.setUpMouseBar();
@@ -125,12 +125,14 @@ export class Game {
     this.leftBar.setExtent(leftMotion.acceleration);
     const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
     this.rightBar.setExtent(rightMotion.acceleration);
-    if (10 * Math.random() < leftMotion.acceleration.length() && leftMotion.velocity.length() > 0.3) {
+    if (10 * Math.random() < leftMotion.acceleration.length() &&
+      leftMotion.velocity.length() > 0.3) {
       this.particleSystem.AddParticle(
         leftMotion.position, leftMotion.velocity,
         this.getColorForState(this.leftHand.getState()));
     }
-    if (10 * Math.random() < rightMotion.acceleration.length() && rightMotion.velocity.length() > 0.3) {
+    if (10 * Math.random() < rightMotion.acceleration.length() &&
+      rightMotion.velocity.length() > 0.3) {
       this.particleSystem.AddParticle(
         rightMotion.position, rightMotion.velocity,
         this.getColorForState(this.rightHand.getState()));

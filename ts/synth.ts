@@ -35,7 +35,7 @@ export class Synth {
     this.env1 = new ADSR(this.audioCtx, this.sawGain.gain);
   }
 
-  public trigger() {
+  public pluck() {
     this.env1.triggerAndRelease(0.5);
   }
 }
