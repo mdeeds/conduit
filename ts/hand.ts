@@ -2,11 +2,13 @@ import * as THREE from "three";
 import { Motion, Tracker } from "./tracker";
 
 export type Side = 'left' | 'right';
+export type State = 'louder' | 'point' | 'softer';
 
 export class Hand {
   readonly gamepad: Gamepad;
   private grip: THREE.Group;
   public tracker = new Tracker();
+  private state: State;
 
   constructor(readonly side: Side, renderer: THREE.WebGLRenderer,
     private scene: THREE.Object3D) {
@@ -42,7 +44,19 @@ export class Hand {
     this.scene.add(this.grip);
   }
 
+  public getState(): State { return this.state; }
+
   public updateMotion(elapsedS: number, deltaS: number): Motion {
+    this.grip.updateMatrix();
+    const xx = this.grip.matrix.elements[0];
+    const xy = this.grip.matrix.elements[1];
+    if (Math.abs(xx) > Math.abs(xy)) {
+      this.state = 'point';
+    } else if (xy < 0) {
+      this.state = 'louder';
+    } else {
+      this.state = 'softer';
+    }
     return this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
   }
 }

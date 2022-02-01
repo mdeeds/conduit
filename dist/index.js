@@ -173,6 +173,16 @@ class Game {
         this.renderer.xr.enabled = true;
     }
     elapsedS = 0;
+    louderColor = new THREE.Color('red');
+    softerColor = new THREE.Color('lightblue');
+    pointColor = new THREE.Color('yellow');
+    getColorForState(s) {
+        switch (s) {
+            case 'softer': return this.softerColor;
+            case 'louder': return this.louderColor;
+            case 'point': return this.pointColor;
+        }
+    }
     animationLoop() {
         const deltaS = Math.min(this.clock.getDelta(), 0.1);
         this.elapsedS += deltaS;
@@ -182,11 +192,11 @@ class Game {
         this.leftBar.setExtent(leftMotion.acceleration);
         const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
         this.rightBar.setExtent(rightMotion.acceleration);
-        if (Math.random() < 0.5 && leftMotion.velocity.length() > 0.3) {
-            this.particleSystem.AddParticle(leftMotion.position, leftMotion.velocity, new THREE.Color('blue'));
+        if (10 * Math.random() < leftMotion.acceleration.length() && leftMotion.velocity.length() > 0.3) {
+            this.particleSystem.AddParticle(leftMotion.position, leftMotion.velocity, this.getColorForState(this.leftHand.getState()));
         }
-        if (Math.random() < 0.5 && rightMotion.velocity.length() > 0.3) {
-            this.particleSystem.AddParticle(rightMotion.position, rightMotion.velocity, new THREE.Color('red'));
+        if (10 * Math.random() < rightMotion.acceleration.length() && rightMotion.velocity.length() > 0.3) {
+            this.particleSystem.AddParticle(rightMotion.position, rightMotion.velocity, this.getColorForState(this.rightHand.getState()));
         }
     }
     setUpAnimation() {
@@ -234,6 +244,7 @@ class Hand {
     gamepad;
     grip;
     tracker = new tracker_1.Tracker();
+    state;
     constructor(side, renderer, scene) {
         this.side = side;
         this.scene = scene;
@@ -263,7 +274,20 @@ class Hand {
         }
         this.scene.add(this.grip);
     }
+    getState() { return this.state; }
     updateMotion(elapsedS, deltaS) {
+        this.grip.updateMatrix();
+        const xx = this.grip.matrix.elements[0];
+        const xy = this.grip.matrix.elements[1];
+        if (Math.abs(xx) > Math.abs(xy)) {
+            this.state = 'point';
+        }
+        else if (xy < 0) {
+            this.state = 'louder';
+        }
+        else {
+            this.state = 'softer';
+        }
         return this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
     }
 }
@@ -525,6 +549,8 @@ class S {
     static default = new Map();
     static {
         S.default.set('m', 0.5); // 0.5 is good for velocity tracking.
+        S.default.set('mv', 0.5);
+        S.default.set('ma', 0.05);
     }
     static float(name) {
         if (S.cache.has(name)) {

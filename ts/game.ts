@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Bar } from "./bar";
-import { Hand } from "./hand";
+import { Hand, State } from "./hand";
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { Tracker } from "./tracker";
 import { ParticleSystem } from "./particleSystem";
@@ -90,6 +90,19 @@ export class Game {
   }
 
   private elapsedS: number = 0;
+
+  private louderColor = new THREE.Color('red');
+  private softerColor = new THREE.Color('lightblue');
+  private pointColor = new THREE.Color('yellow');
+
+  private getColorForState(s: State): THREE.Color {
+    switch (s) {
+      case 'softer': return this.softerColor;
+      case 'louder': return this.louderColor;
+      case 'point': return this.pointColor;
+    }
+  }
+
   private animationLoop() {
     const deltaS = Math.min(this.clock.getDelta(), 0.1);
     this.elapsedS += deltaS;
@@ -102,13 +115,15 @@ export class Game {
     this.leftBar.setExtent(leftMotion.acceleration);
     const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
     this.rightBar.setExtent(rightMotion.acceleration);
-    if (Math.random() < 0.5 && leftMotion.velocity.length() > 0.3) {
+    if (10 * Math.random() < leftMotion.acceleration.length() && leftMotion.velocity.length() > 0.3) {
       this.particleSystem.AddParticle(
-        leftMotion.position, leftMotion.velocity, new THREE.Color('blue'));
+        leftMotion.position, leftMotion.velocity,
+        this.getColorForState(this.leftHand.getState()));
     }
-    if (Math.random() < 0.5 && rightMotion.velocity.length() > 0.3) {
+    if (10 * Math.random() < rightMotion.acceleration.length() && rightMotion.velocity.length() > 0.3) {
       this.particleSystem.AddParticle(
-        rightMotion.position, rightMotion.velocity, new THREE.Color('red'));
+        rightMotion.position, rightMotion.velocity,
+        this.getColorForState(this.rightHand.getState()));
     }
   }
   private setUpAnimation() {
