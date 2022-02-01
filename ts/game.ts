@@ -20,7 +20,7 @@ export class Game {
   private leftHand: Hand;
   private rightHand: Hand;
 
-  constructor() {
+  constructor(private audioCtx: AudioContext) {
     this.renderer = new THREE.WebGLRenderer();
     this.scene = new THREE.Scene();
     this.leftBar = new Bar(new THREE.Color('blue'));
