@@ -125,14 +125,12 @@ export class Game {
     this.leftBar.setExtent(leftMotion.acceleration);
     const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
     this.rightBar.setExtent(rightMotion.acceleration);
-    if (10 * Math.random() < leftMotion.acceleration.length() &&
-      leftMotion.velocity.length() > 0.3) {
+    if (leftMotion.velocity.length() > Math.random()) {
       this.particleSystem.AddParticle(
         leftMotion.position, leftMotion.velocity,
         this.getColorForState(this.leftHand.getState()));
     }
-    if (10 * Math.random() < rightMotion.acceleration.length() &&
-      rightMotion.velocity.length() > 0.3) {
+    if (rightMotion.velocity.length() > Math.random()) {
       this.particleSystem.AddParticle(
         rightMotion.position, rightMotion.velocity,
         this.getColorForState(this.rightHand.getState()));
