@@ -50,18 +50,7 @@ export class Game {
 
     this.setUpAnimation();
     this.setUpMouseBar();
-
-
     this.particleSystem = new ParticleSystem(this.scene);
-    for (let i = 0; i < 1000; ++i) {
-      const p = new THREE.Vector3(6 * (Math.random() - 0.5),
-        2 * (0.5 + Math.random()), 3 * Math.random() - 2);
-      const v = new THREE.Vector3(
-        0.1 * (Math.random() - 0.5),
-        0.1 * (Math.random() - 0.5),
-        0.1 * (Math.random() - 0.5));
-      this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
-    }
   }
 
   private setUpMouseBar() {
@@ -103,6 +92,16 @@ export class Game {
     }
   }
 
+  private addRandomDot() {
+    const p = new THREE.Vector3(6 * (Math.random() - 0.5),
+      2 * (0.5 + Math.random()), 3 * Math.random() - 2);
+    const v = new THREE.Vector3(
+      0.1 * (Math.random() - 0.5),
+      0.1 * (Math.random() - 0.5),
+      0.1 * (Math.random() - 0.5));
+    this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
+  }
+
   private animationLoop() {
     const deltaS = Math.min(this.clock.getDelta(), 0.1);
     this.elapsedS += deltaS;
@@ -125,6 +124,7 @@ export class Game {
         rightMotion.position, rightMotion.velocity,
         this.getColorForState(this.rightHand.getState()));
     }
+    this.addRandomDot();
   }
   private setUpAnimation() {
     this.clock = new THREE.Clock();
