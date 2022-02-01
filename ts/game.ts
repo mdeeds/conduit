@@ -4,6 +4,7 @@ import { Hand, State } from "./hand";
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { Tracker } from "./tracker";
 import { ParticleSystem } from "./particleSystem";
+import { Synth } from "./synth";
 
 export class Game {
   private scene: THREE.Scene;
@@ -20,7 +21,17 @@ export class Game {
   private leftHand: Hand;
   private rightHand: Hand;
 
+  private synth: Synth;
+
   constructor(private audioCtx: AudioContext) {
+    this.synth = new Synth(audioCtx);
+    document.querySelector('body').addEventListener('keydown', (ev) => {
+      if (ev.code === 'Space') {
+        console.log('Trigger');
+        this.synth.trigger();
+      }
+    });
+
     this.renderer = new THREE.WebGLRenderer();
     this.scene = new THREE.Scene();
     this.leftBar = new Bar(new THREE.Color('blue'));
