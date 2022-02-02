@@ -114,6 +114,7 @@ void main() {
     this.geometry.attributes.size.needsUpdate = true;
     this.geometry.attributes.color.needsUpdate = true;
     this.geometry.attributes.angle.needsUpdate = true;
+    this.geometry.computeBoundingSphere();
   }
 
   private v = new THREE.Vector3();

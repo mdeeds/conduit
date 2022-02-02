@@ -7,6 +7,7 @@ export class S {
     S.default.set('mv', 0.5);
     S.default.set('ma', 0.05);
     S.default.set('p', 0.2);
+    S.default.set('v', 0.01);
   }
 
   public static float(name: string): number {

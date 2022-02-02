@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Bar } from "./bar";
+
 import { Hand, State } from "./hand";
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { Tracker } from "./tracker";
@@ -30,8 +30,8 @@ export class Game {
         case 'KeyS': this.camera.position.z += 0.2; break;
         case 'KeyA': this.camera.position.x -= 0.2; break;
         case 'KeyD': this.camera.position.x += 0.2; break;
-        case 'KeyQ': this.camera.rotation.y += Math.PI / 32; break;
-        case 'KeyE': this.camera.rotation.y -= Math.PI / 32; break;
+        case 'KeyQ': this.camera.rotateOnWorldAxis(this.camera.up, Math.PI / 32); break;
+        case 'KeyE': this.camera.rotateOnWorldAxis(this.camera.up, -Math.PI / 32); break;
       }
     });
 
@@ -45,7 +45,7 @@ export class Game {
     this.camera.lookAt(0, 0.15, -2);
     this.scene.add(this.camera);
 
-    this.scene.add(new Stage());
+    this.scene.add(new Stage(this.synth));
 
     // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
     // this.scene.add(light);

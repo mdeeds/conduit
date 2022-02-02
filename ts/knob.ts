@@ -1,3 +1,4 @@
+import * as THREE from "three";
 
 type ValueSetter = (x: number) => void;
 
@@ -8,6 +9,12 @@ export class KnobTarget {
   public static fromAudioParam(param: AudioParam, audioCtx: AudioContext, lagS: number) {
     return new KnobTarget((x) => {
       param.linearRampToValueAtTime(x, audioCtx.currentTime + lagS);
+    })
+  }
+
+  public static fromObjectScale(object: THREE.Object3D) {
+    return new KnobTarget((x) => {
+      object.scale.setLength(x * 1.73205);  // Root of three
     })
   }
 

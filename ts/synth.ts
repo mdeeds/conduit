@@ -42,7 +42,7 @@ export class Synth {
     this.env1 = new ADSR(this.audioCtx, this.sawGain.gain);
     this.volumeGain = this.audioCtx.createGain();
     this.volumeGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
-    this.volumeKnob = new Knob(0, 1, 1);
+    this.volumeKnob = new Knob(0.05, 1, 1);
     this.volumeKnob.addTarget(KnobTarget.fromAudioParam(
       this.volumeGain.gain, this.audioCtx, 0.05));
     this.sawGain.connect(this.volumeGain);

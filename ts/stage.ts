@@ -1,7 +1,9 @@
 import * as THREE from "three";
+import { KnobTarget } from "./knob";
+import { Synth } from "./synth";
 
 export class Stage extends THREE.Object3D {
-  constructor() {
+  constructor(synth: Synth) {
     super();
 
     let r = 2;
@@ -23,6 +25,9 @@ export class Stage extends THREE.Object3D {
       b.castShadow = true;
       this.add(b);
     }
+
+    synth.getVolumeKnob().addTarget(KnobTarget.fromObjectScale(b));
+
     const light = new THREE.SpotLight('white',
       /*intensity=*/ 2,
       /*distance=*/0,

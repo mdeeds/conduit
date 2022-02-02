@@ -71,10 +71,10 @@ class Game {
                     this.camera.position.x += 0.2;
                     break;
                 case 'KeyQ':
-                    this.camera.rotation.y += Math.PI / 32;
+                    this.camera.rotateOnWorldAxis(this.camera.up, Math.PI / 32);
                     break;
                 case 'KeyE':
-                    this.camera.rotation.y -= Math.PI / 32;
+                    this.camera.rotateOnWorldAxis(this.camera.up, -Math.PI / 32);
                     break;
             }
         });
@@ -85,7 +85,7 @@ class Game {
         this.camera.position.set(0, 1.6, 0);
         this.camera.lookAt(0, 0.15, -2);
         this.scene.add(this.camera);
-        this.scene.add(new stage_1.Stage());
+        this.scene.add(new stage_1.Stage(this.synth));
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
         this.setUpRenderer();
@@ -131,9 +131,6 @@ class Game {
     addRandomDot() {
         const p = new THREE.Vector3(6 * (Math.random() - 0.5), 3 * (Math.random()), 6 * (Math.random() - 0.5));
         const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.2), 0.1 * (Math.random() - 0.5));
-        // if (Math.random() < 0.1) {
-        //   console.log(p);
-        // }
         this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
     }
     animationLoop() {
@@ -200,6 +197,7 @@ class Hand {
     tracker = new tracker_1.Tracker();
     state;
     pluckThreshold = -settings_1.S.float('p');
+    volumeRate = settings_1.S.float('v');
     constructor(side, renderer, scene, synth) {
         this.side = side;
         this.scene = scene;
@@ -264,6 +262,11 @@ class Hand {
                 this.synth.pluck();
             }
         }
+        else {
+            const magnitude = motion.velocity.length() *
+                ((this.state === 'softer') ? -this.volumeRate : this.volumeRate);
+            this.synth.getVolumeKnob().change(magnitude);
+        }
         return motion;
     }
 }
@@ -286,6 +289,11 @@ class KnobTarget {
     static fromAudioParam(param, audioCtx, lagS) {
         return new KnobTarget((x) => {
             param.linearRampToValueAtTime(x, audioCtx.currentTime + lagS);
+        });
+    }
+    static fromObjectScale(object) {
+        return new KnobTarget((x) => {
+            object.scale.setLength(x * 1.73205); // Root of three
         });
     }
     setValue(value) {
@@ -448,6 +456,7 @@ void main() {
         this.geometry.attributes.size.needsUpdate = true;
         this.geometry.attributes.color.needsUpdate = true;
         this.geometry.attributes.angle.needsUpdate = true;
+        this.geometry.computeBoundingSphere();
     }
     v = new THREE.Vector3();
     UpdateParticles(camera, deltaS) {
@@ -562,6 +571,7 @@ class S {
         S.default.set('mv', 0.5);
         S.default.set('ma', 0.05);
         S.default.set('p', 0.2);
+        S.default.set('v', 0.01);
     }
     static float(name) {
         if (S.cache.has(name)) {
@@ -610,8 +620,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Stage = void 0;
 const THREE = __importStar(__webpack_require__(578));
+const knob_1 = __webpack_require__(0);
 class Stage extends THREE.Object3D {
-    constructor() {
+    constructor(synth) {
         super();
         let r = 2;
         {
@@ -629,6 +640,7 @@ class Stage extends THREE.Object3D {
             b.castShadow = true;
             this.add(b);
         }
+        synth.getVolumeKnob().addTarget(knob_1.KnobTarget.fromObjectScale(b));
         const light = new THREE.SpotLight('white', 
         /*intensity=*/ 2, 
         /*distance=*/ 0, 
@@ -708,7 +720,7 @@ class Synth {
         this.env1 = new ADSR(this.audioCtx, this.sawGain.gain);
         this.volumeGain = this.audioCtx.createGain();
         this.volumeGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
-        this.volumeKnob = new knob_1.Knob(0, 1, 1);
+        this.volumeKnob = new knob_1.Knob(0.05, 1, 1);
         this.volumeKnob.addTarget(knob_1.KnobTarget.fromAudioParam(this.volumeGain.gain, this.audioCtx, 0.05));
         this.sawGain.connect(this.volumeGain);
         this.volumeGain.connect(audioCtx.destination);
