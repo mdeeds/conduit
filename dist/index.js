@@ -2,81 +2,6 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 825:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Bar = void 0;
-const THREE = __importStar(__webpack_require__(578));
-const settings_1 = __webpack_require__(451);
-class Bar extends THREE.Object3D {
-    constructor(color) {
-        super();
-        // Cones extend into the y direction
-        const geometry = new THREE.ConeBufferGeometry(0.05, 1.0);
-        geometry.rotateX(Math.PI);
-        geometry.translate(0, 0.5, 0);
-        const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-            color: color
-        }));
-        this.add(mesh);
-        this.position.set(0, 0, 0);
-        this.rotation.set(0, 0, 0);
-        this.updateMatrix();
-    }
-    static zero = new THREE.Vector3(0, 0, 0);
-    m = new THREE.Matrix4();
-    orientation = new THREE.Matrix4();
-    q = new THREE.Quaternion();
-    v = new THREE.Vector3();
-    updatePole(from, to) {
-        this.m.set(1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1);
-        /* THREE.Object3D().up (=Y) default orientation for all objects */
-        this.orientation.lookAt(from, to, this.up);
-        /* rotation around axis X by -90 degrees
-         * matches the default orientation Y
-         * with the orientation of looking Z */
-        this.orientation.multiply(this.m);
-        this.rotation.set(0, 0, 0);
-        this.applyMatrix4(this.orientation);
-    }
-    setExtent(v) {
-        if (v.length() === 0) {
-            this.scale.set(0.1, 0.1, 0.1);
-        }
-        else {
-            this.v.copy(v);
-            this.v.multiplyScalar(settings_1.S.float('m'));
-            this.updatePole(Bar.zero, this.v);
-            this.scale.set(1, this.v.length(), 1);
-        }
-    }
-}
-exports.Bar = Bar;
-//# sourceMappingURL=bar.js.map
-
-/***/ }),
-
 /***/ 417:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -103,12 +28,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Game = void 0;
 const THREE = __importStar(__webpack_require__(578));
-const bar_1 = __webpack_require__(825);
 const hand_1 = __webpack_require__(673);
 const VRButton_js_1 = __webpack_require__(652);
 const tracker_1 = __webpack_require__(163);
 const particleSystem_1 = __webpack_require__(564);
 const synth_1 = __webpack_require__(671);
+const stage_1 = __webpack_require__(976);
 class Game {
     audioCtx;
     scene;
@@ -116,10 +41,6 @@ class Game {
     clock;
     camera;
     particleSystem;
-    leftBar;
-    rightBar;
-    middleBar;
-    middleBar2;
     leftHand;
     rightHand;
     synth;
@@ -127,28 +48,46 @@ class Game {
         this.audioCtx = audioCtx;
         this.synth = new synth_1.Synth(audioCtx);
         document.querySelector('body').addEventListener('keydown', (ev) => {
-            if (ev.code === 'Space') {
-                console.log('Trigger');
-                this.synth.pluck();
+            switch (ev.code) {
+                case 'Space':
+                    this.synth.pluck();
+                    break;
+                case 'ArrowUp':
+                    this.synth.getVolumeKnob().change(0.1);
+                    break;
+                case 'ArrowDown':
+                    this.synth.getVolumeKnob().change(-0.1);
+                    break;
+                case 'KeyW':
+                    this.camera.position.z -= 0.2;
+                    break;
+                case 'KeyS':
+                    this.camera.position.z += 0.2;
+                    break;
+                case 'KeyA':
+                    this.camera.position.x -= 0.2;
+                    break;
+                case 'KeyD':
+                    this.camera.position.x += 0.2;
+                    break;
+                case 'KeyQ':
+                    this.camera.rotation.y += Math.PI / 32;
+                    break;
+                case 'KeyE':
+                    this.camera.rotation.y -= Math.PI / 32;
+                    break;
             }
         });
         this.renderer = new THREE.WebGLRenderer();
         this.scene = new THREE.Scene();
-        this.leftBar = new bar_1.Bar(new THREE.Color('blue'));
-        this.scene.add(this.leftBar);
-        this.rightBar = new bar_1.Bar(new THREE.Color('red'));
-        this.scene.add(this.rightBar);
-        this.middleBar = new bar_1.Bar(new THREE.Color('green'));
-        this.scene.add(this.middleBar);
-        this.middleBar2 = new bar_1.Bar(new THREE.Color('white'));
-        this.scene.add(this.middleBar2);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, /*near=*/ 0.1, 
         /*far=*/ 100);
-        this.camera.position.set(0, 1.6, 3);
-        this.camera.lookAt(0, 0, 0);
+        this.camera.position.set(0, 1.6, 0);
+        this.camera.lookAt(0, 0.15, -2);
         this.scene.add(this.camera);
-        const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
-        this.scene.add(light);
+        this.scene.add(new stage_1.Stage());
+        // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
+        // this.scene.add(light);
         this.setUpRenderer();
         this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.synth);
         this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.synth);
@@ -167,8 +106,6 @@ class Game {
             lastTs += dt;
             p.set(ev.clientX / 100, -ev.clientY / 100, 0);
             const motion = tracker.updateMotion(p, currentTs, dt);
-            this.middleBar.setExtent(motion.velocity);
-            this.middleBar2.setExtent(motion.acceleration);
         });
     }
     setUpRenderer() {
@@ -177,6 +114,8 @@ class Game {
         document.body.appendChild(this.renderer.domElement);
         document.body.appendChild(VRButton_js_1.VRButton.createButton(this.renderer));
         this.renderer.xr.enabled = true;
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     }
     elapsedS = 0;
     louderColor = new THREE.Color('red');
@@ -190,8 +129,11 @@ class Game {
         }
     }
     addRandomDot() {
-        const p = new THREE.Vector3(6 * (Math.random() - 0.5), 2 * (0.5 + Math.random()), 3 * Math.random() - 2);
-        const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.5));
+        const p = new THREE.Vector3(6 * (Math.random() - 0.5), 3 * (Math.random()), 6 * (Math.random() - 0.5));
+        const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.2), 0.1 * (Math.random() - 0.5));
+        // if (Math.random() < 0.1) {
+        //   console.log(p);
+        // }
         this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
     }
     animationLoop() {
@@ -200,15 +142,11 @@ class Game {
         this.particleSystem.step(this.camera, deltaS);
         this.renderer.render(this.scene, this.camera);
         const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
-        this.leftBar.setExtent(leftMotion.acceleration);
         const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
-        this.rightBar.setExtent(rightMotion.acceleration);
-        if (10 * Math.random() < leftMotion.acceleration.length() &&
-            leftMotion.velocity.length() > 0.3) {
+        if (leftMotion.velocity.length() > Math.random()) {
             this.particleSystem.AddParticle(leftMotion.position, leftMotion.velocity, this.getColorForState(this.leftHand.getState()));
         }
-        if (10 * Math.random() < rightMotion.acceleration.length() &&
-            rightMotion.velocity.length() > 0.3) {
+        if (rightMotion.velocity.length() > Math.random()) {
             this.particleSystem.AddParticle(rightMotion.position, rightMotion.velocity, this.getColorForState(this.rightHand.getState()));
         }
         this.addRandomDot();
@@ -334,6 +272,56 @@ exports.Hand = Hand;
 
 /***/ }),
 
+/***/ 0:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Knob = exports.KnobTarget = void 0;
+class KnobTarget {
+    set;
+    constructor(set) {
+        this.set = set;
+    }
+    static fromAudioParam(param, audioCtx, lagS) {
+        return new KnobTarget((x) => {
+            param.linearRampToValueAtTime(x, audioCtx.currentTime + lagS);
+        });
+    }
+    setValue(value) {
+        this.set(value);
+    }
+}
+exports.KnobTarget = KnobTarget;
+class Knob {
+    low;
+    high;
+    value;
+    targets = [];
+    constructor(low, high, value) {
+        this.low = low;
+        this.high = high;
+        this.value = value;
+        this.value = Math.max(low, Math.min(high, value));
+    }
+    change(relativeDelta) {
+        const absoluteDelta = relativeDelta * (this.high - this.low);
+        this.value += absoluteDelta;
+        this.value = Math.max(this.low, Math.min(this.high, this.value));
+        for (const t of this.targets) {
+            t.setValue(this.value);
+        }
+    }
+    addTarget(target) {
+        this.targets.push(target);
+        target.setValue(this.value);
+    }
+}
+exports.Knob = Knob;
+//# sourceMappingURL=knob.js.map
+
+/***/ }),
+
 /***/ 564:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -428,28 +416,12 @@ void main() {
         this.geometry.setAttribute('angle', new THREE.Float32BufferAttribute([], 1));
         this.points = new THREE.Points(this.geometry, this.material);
         scene.add(this.points);
-        // this._alphaSpline = new LinearSpline((t, a, b) => {
-        //   return a + t * (b - a);
-        // });
-        // this._alphaSpline.AddPoint(0.0, 0.0);
-        // this._alphaSpline.AddPoint(0.1, 1.0);
-        // this._alphaSpline.AddPoint(0.6, 1.0);
-        // this._alphaSpline.AddPoint(1.0, 0.0);
-        // this._colorSpline = new LinearSpline((t, a, b) => {
-        //   const c = a.clone();
-        //   return c.lerp(b, t);
-        // });
-        // this._colorSpline.AddPoint(0.0, new THREE.Color(0xFFFF80));
-        // this._colorSpline.AddPoint(1.0, new THREE.Color(0xFF8080));
-        // this._sizeSpline = new LinearSpline((t, a, b) => {
-        //   return a + t * (b - a);
-        // });
-        // this._sizeSpline.AddPoint(0.0, 1.0);
-        // this._sizeSpline.AddPoint(0.5, 5.0);
-        // this._sizeSpline.AddPoint(1.0, 1.0);
         this.UpdateGeometry();
     }
     AddParticle(position, velocity, color) {
+        if (!position.manhattanLength() || !velocity.manhattanLength()) {
+            return;
+        }
         const p = new THREE.Vector3();
         p.copy(position);
         const v = new THREE.Vector3();
@@ -612,12 +584,85 @@ exports.S = S;
 
 /***/ }),
 
+/***/ 976:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Stage = void 0;
+const THREE = __importStar(__webpack_require__(578));
+class Stage extends THREE.Object3D {
+    constructor() {
+        super();
+        let r = 2;
+        {
+            const light = new THREE.HemisphereLight('#8bf', '#951', 0.5);
+            this.add(light);
+        }
+        let b = null;
+        for (let i = 0; i < 9; ++i) {
+            const x = r * Math.sin(i / 9 * 2 * Math.PI);
+            const z = -r * Math.cos(i / 9 * 2 * Math.PI);
+            const ballGeometry = new THREE.IcosahedronBufferGeometry(0.3, 3);
+            ballGeometry.translate(0, 0.3, 0);
+            b = new THREE.Mesh(ballGeometry, new THREE.MeshStandardMaterial({ color: '#444', roughness: 0.2 }));
+            b.position.set(x, 0, z);
+            b.castShadow = true;
+            this.add(b);
+        }
+        const light = new THREE.SpotLight('white', 
+        /*intensity=*/ 2, 
+        /*distance=*/ 0, 
+        /*angle=*/ Math.PI / 32, 
+        /*penumbra=*/ 0.15, 
+        /*decay=*/ 2);
+        light.position.set(b.position.x, 5, b.position.z);
+        light.castShadow = true;
+        light.castShadow = true;
+        light.shadow.mapSize.width = 1024;
+        light.shadow.mapSize.height = 1024;
+        light.shadow.camera.near = 1;
+        light.shadow.camera.far = 10;
+        light.shadow.focus = 1;
+        light.target = b;
+        this.add(light);
+        const floor = new THREE.Mesh(new THREE.PlaneBufferGeometry(5, 5), new THREE.MeshStandardMaterial({ color: '#444' }));
+        floor.receiveShadow = true;
+        floor.rotateX(-Math.PI / 2);
+        this.add(floor);
+    }
+}
+exports.Stage = Stage;
+//# sourceMappingURL=stage.js.map
+
+/***/ }),
+
 /***/ 671:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Synth = void 0;
+const knob_1 = __webpack_require__(0);
 class ADSR {
     audioCtx;
     param;
@@ -629,6 +674,7 @@ class ADSR {
         this.audioCtx = audioCtx;
         this.param = param;
     }
+    // Returns the release time.
     triggerAndRelease(durationS) {
         let t = this.audioCtx.currentTime;
         t += this.attack;
@@ -636,9 +682,11 @@ class ADSR {
         t += this.decay;
         this.param.linearRampToValueAtTime(this.sustain, t);
         t += durationS;
+        const releaseTime = t;
         this.param.linearRampToValueAtTime(this.sustain, t);
         t += this.release;
         this.param.linearRampToValueAtTime(0, t);
+        return releaseTime;
     }
 }
 class Synth {
@@ -646,6 +694,9 @@ class Synth {
     sawOsc;
     sawGain;
     env1;
+    releaseDeadline = 0;
+    volumeGain;
+    volumeKnob;
     constructor(audioCtx) {
         this.audioCtx = audioCtx;
         this.sawOsc = audioCtx.createOscillator();
@@ -653,12 +704,22 @@ class Synth {
         this.sawGain = audioCtx.createGain();
         this.sawGain.gain.setValueAtTime(0, audioCtx.currentTime);
         this.sawOsc.connect(this.sawGain);
-        this.sawGain.connect(this.audioCtx.destination);
         this.sawOsc.start();
         this.env1 = new ADSR(this.audioCtx, this.sawGain.gain);
+        this.volumeGain = this.audioCtx.createGain();
+        this.volumeGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
+        this.volumeKnob = new knob_1.Knob(0, 1, 1);
+        this.volumeKnob.addTarget(knob_1.KnobTarget.fromAudioParam(this.volumeGain.gain, this.audioCtx, 0.05));
+        this.sawGain.connect(this.volumeGain);
+        this.volumeGain.connect(audioCtx.destination);
     }
     pluck() {
-        this.env1.triggerAndRelease(0.5);
+        if (this.audioCtx.currentTime > this.releaseDeadline) {
+            this.releaseDeadline = this.env1.triggerAndRelease(0.5);
+        }
+    }
+    getVolumeKnob() {
+        return this.volumeKnob;
     }
 }
 exports.Synth = Synth;

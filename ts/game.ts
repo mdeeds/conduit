@@ -5,6 +5,7 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { Tracker } from "./tracker";
 import { ParticleSystem } from "./particleSystem";
 import { Synth } from "./synth";
+import { Stage } from "./stage";
 
 export class Game {
   private scene: THREE.Scene;
@@ -12,11 +13,6 @@ export class Game {
   private clock: THREE.Clock;
   private camera: THREE.Camera;
   private particleSystem: ParticleSystem;
-
-  private leftBar: Bar;
-  private rightBar: Bar;
-  private middleBar: Bar;
-  private middleBar2: Bar;
 
   private leftHand: Hand;
   private rightHand: Hand;
@@ -30,31 +26,29 @@ export class Game {
         case 'Space': this.synth.pluck(); break;
         case 'ArrowUp': this.synth.getVolumeKnob().change(0.1); break;
         case 'ArrowDown': this.synth.getVolumeKnob().change(-0.1); break;
+        case 'KeyW': this.camera.position.z -= 0.2; break;
+        case 'KeyS': this.camera.position.z += 0.2; break;
+        case 'KeyA': this.camera.position.x -= 0.2; break;
+        case 'KeyD': this.camera.position.x += 0.2; break;
+        case 'KeyQ': this.camera.rotation.y += Math.PI / 32; break;
+        case 'KeyE': this.camera.rotation.y -= Math.PI / 32; break;
       }
     });
 
     this.renderer = new THREE.WebGLRenderer();
     this.scene = new THREE.Scene();
-    this.leftBar = new Bar(new THREE.Color('blue'));
-    this.scene.add(this.leftBar);
-
-    this.rightBar = new Bar(new THREE.Color('red'));
-    this.scene.add(this.rightBar);
-
-    this.middleBar = new Bar(new THREE.Color('green'));
-    this.scene.add(this.middleBar);
-    this.middleBar2 = new Bar(new THREE.Color('white'));
-    this.scene.add(this.middleBar2);
 
     this.camera = new THREE.PerspectiveCamera(
       75, window.innerWidth / window.innerHeight, /*near=*/0.1,
       /*far=*/100);
-    this.camera.position.set(0, 1.6, 3);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.set(0, 1.6, 0);
+    this.camera.lookAt(0, 0.15, -2);
     this.scene.add(this.camera);
 
-    const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
-    this.scene.add(light);
+    this.scene.add(new Stage());
+
+    // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
+    // this.scene.add(light);
 
     this.setUpRenderer();
     this.leftHand = new Hand('left', this.renderer, this.scene, this.synth);
@@ -77,8 +71,6 @@ export class Game {
       lastTs += dt;
       p.set(ev.clientX / 100, -ev.clientY / 100, 0);
       const motion = tracker.updateMotion(p, currentTs, dt);
-      this.middleBar.setExtent(motion.velocity);
-      this.middleBar2.setExtent(motion.acceleration);
     });
   }
 
@@ -88,6 +80,8 @@ export class Game {
     document.body.appendChild(this.renderer.domElement);
     document.body.appendChild(VRButton.createButton(this.renderer));
     this.renderer.xr.enabled = true;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   }
 
   private elapsedS: number = 0;
@@ -105,11 +99,13 @@ export class Game {
   }
 
   private addRandomDot() {
-    const p = new THREE.Vector3(6 * (Math.random() - 0.5),
-      2 * (0.5 + Math.random()), 3 * Math.random() - 2);
+    const p = new THREE.Vector3(
+      6 * (Math.random() - 0.5),
+      3 * (Math.random()),
+      6 * (Math.random() - 0.5));
     const v = new THREE.Vector3(
       0.1 * (Math.random() - 0.5),
-      0.1 * (Math.random() - 0.5),
+      0.1 * (Math.random() - 0.2),
       0.1 * (Math.random() - 0.5));
     this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
   }
@@ -123,9 +119,7 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
 
     const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
-    this.leftBar.setExtent(leftMotion.acceleration);
     const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
-    this.rightBar.setExtent(rightMotion.acceleration);
     if (leftMotion.velocity.length() > Math.random()) {
       this.particleSystem.AddParticle(
         leftMotion.position, leftMotion.velocity,
