@@ -68,36 +68,15 @@ void main() {
     this.geometry.setAttribute('angle', new THREE.Float32BufferAttribute([], 1));
 
     this.points = new THREE.Points(this.geometry, this.material);
-
     scene.add(this.points);
-
-    // this._alphaSpline = new LinearSpline((t, a, b) => {
-    //   return a + t * (b - a);
-    // });
-    // this._alphaSpline.AddPoint(0.0, 0.0);
-    // this._alphaSpline.AddPoint(0.1, 1.0);
-    // this._alphaSpline.AddPoint(0.6, 1.0);
-    // this._alphaSpline.AddPoint(1.0, 0.0);
-
-    // this._colorSpline = new LinearSpline((t, a, b) => {
-    //   const c = a.clone();
-    //   return c.lerp(b, t);
-    // });
-    // this._colorSpline.AddPoint(0.0, new THREE.Color(0xFFFF80));
-    // this._colorSpline.AddPoint(1.0, new THREE.Color(0xFF8080));
-
-    // this._sizeSpline = new LinearSpline((t, a, b) => {
-    //   return a + t * (b - a);
-    // });
-    // this._sizeSpline.AddPoint(0.0, 1.0);
-    // this._sizeSpline.AddPoint(0.5, 5.0);
-    // this._sizeSpline.AddPoint(1.0, 1.0);
-
     this.UpdateGeometry();
   }
 
   AddParticle(position: THREE.Vector3, velocity: THREE.Vector3,
     color: THREE.Color) {
+    if (!position.manhattanLength() || !velocity.manhattanLength()) {
+      return;
+    }
     const p = new THREE.Vector3();
     p.copy(position);
     const v = new THREE.Vector3();

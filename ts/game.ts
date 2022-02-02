@@ -26,9 +26,10 @@ export class Game {
   constructor(private audioCtx: AudioContext) {
     this.synth = new Synth(audioCtx);
     document.querySelector('body').addEventListener('keydown', (ev) => {
-      if (ev.code === 'Space') {
-        console.log('Trigger');
-        this.synth.pluck();
+      switch (ev.code) {
+        case 'Space': this.synth.pluck(); break;
+        case 'ArrowUp': this.synth.getVolumeKnob().change(0.1); break;
+        case 'ArrowDown': this.synth.getVolumeKnob().change(-0.1); break;
       }
     });
 

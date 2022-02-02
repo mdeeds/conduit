@@ -1,3 +1,5 @@
+import { Knob, KnobTarget } from "./knob";
+
 class ADSR {
   public attack = 0;
   public decay = 0;
@@ -27,21 +29,33 @@ export class Synth {
   private sawGain: GainNode;
   private env1: ADSR;
   private releaseDeadline = 0;
+  private volumeGain: GainNode;
+  private volumeKnob: Knob;
   constructor(private audioCtx: AudioContext) {
     this.sawOsc = audioCtx.createOscillator();
     this.sawOsc.type = 'sawtooth';
     this.sawGain = audioCtx.createGain();
     this.sawGain.gain.setValueAtTime(0, audioCtx.currentTime);
     this.sawOsc.connect(this.sawGain);
-    this.sawGain.connect(this.audioCtx.destination);
     this.sawOsc.start();
 
     this.env1 = new ADSR(this.audioCtx, this.sawGain.gain);
+    this.volumeGain = this.audioCtx.createGain();
+    this.volumeGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
+    this.volumeKnob = new Knob(0, 1, 1);
+    this.volumeKnob.addTarget(KnobTarget.fromAudioParam(
+      this.volumeGain.gain, this.audioCtx, 0.05));
+    this.sawGain.connect(this.volumeGain);
+    this.volumeGain.connect(audioCtx.destination);
   }
 
   public pluck() {
     if (this.audioCtx.currentTime > this.releaseDeadline) {
       this.releaseDeadline = this.env1.triggerAndRelease(0.5);
     }
+  }
+
+  public getVolumeKnob(): Knob {
+    return this.volumeKnob;
   }
 }
