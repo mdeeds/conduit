@@ -88,15 +88,19 @@ export class Game {
 
   private elapsedS: number = 0;
 
-  private louderColor = new THREE.Color('red');
+  private louderColor = new THREE.Color('orange');
   private softerColor = new THREE.Color('lightblue');
   private pointColor = new THREE.Color('yellow');
+  private pluckColor = new THREE.Color('pink');
+  private fofColor = new THREE.Color('#f0f');
 
   private getColorForState(s: State): THREE.Color {
     switch (s) {
       case 'softer': return this.softerColor;
       case 'louder': return this.louderColor;
       case 'point': return this.pointColor;
+      case 'pluck': return this.pluckColor;
+      default: return this.fofColor;
     }
   }
 

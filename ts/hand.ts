@@ -5,7 +5,7 @@ import { Synth } from "./synth";
 import { Motion, Tracker } from "./tracker";
 
 export type Side = 'left' | 'right';
-export type State = 'louder' | 'point' | 'softer';
+export type State = 'louder' | 'point' | 'softer' | 'pluck';
 
 export class Hand {
   readonly gamepad: Gamepad;
@@ -65,7 +65,13 @@ export class Hand {
     const xx = this.grip.matrix.elements[0];
     const xy = this.grip.matrix.elements[1];
     if (Math.abs(xx) > Math.abs(xy)) {
-      this.state = 'point';
+      this.v.copy(this.grip.position);
+      this.v.y = 0;
+      if (this.v.length() > S.float('pr')) {
+        this.state = 'point';
+      } else {
+        this.state = 'pluck';
+      }
     } else if (xy < 0) {
       this.state = 'louder';
     } else {

@@ -9,6 +9,7 @@ export class S {
     S.default.set('p', 0.2);
     S.default.set('v', 0.01);
     S.default.set('s', 5);
+    S.default.set('pr', 0.5);  // Pointing radius threshold.
   }
 
   public static float(name: string): number {
