@@ -18,6 +18,7 @@ export class Game {
   private rightHand: Hand;
 
   private synth: Synth;
+  private stage: Stage;
 
   constructor(private audioCtx: AudioContext) {
     this.synth = new Synth(audioCtx);
@@ -45,7 +46,8 @@ export class Game {
     this.camera.lookAt(0, 0.15, -2);
     this.scene.add(this.camera);
 
-    this.scene.add(new Stage(this.synth));
+    this.stage = new Stage(this.synth);
+    this.scene.add(this.stage);
 
     // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
     // this.scene.add(light);
@@ -115,6 +117,7 @@ export class Game {
     this.elapsedS += deltaS;
 
     this.particleSystem.step(this.camera, deltaS);
+    this.stage.update(this.elapsedS);
 
     this.renderer.render(this.scene, this.camera);
 

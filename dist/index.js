@@ -44,6 +44,7 @@ class Game {
     leftHand;
     rightHand;
     synth;
+    stage;
     constructor(audioCtx) {
         this.audioCtx = audioCtx;
         this.synth = new synth_1.Synth(audioCtx);
@@ -85,7 +86,8 @@ class Game {
         this.camera.position.set(0, 1.6, 0);
         this.camera.lookAt(0, 0.15, -2);
         this.scene.add(this.camera);
-        this.scene.add(new stage_1.Stage(this.synth));
+        this.stage = new stage_1.Stage(this.synth);
+        this.scene.add(this.stage);
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
         this.setUpRenderer();
@@ -137,6 +139,7 @@ class Game {
         const deltaS = Math.min(this.clock.getDelta(), 0.1);
         this.elapsedS += deltaS;
         this.particleSystem.step(this.camera, deltaS);
+        this.stage.update(this.elapsedS);
         this.renderer.render(this.scene, this.camera);
         const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
         const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
@@ -572,6 +575,7 @@ class S {
         S.default.set('ma', 0.05);
         S.default.set('p', 0.2);
         S.default.set('v', 0.01);
+        S.default.set('s', 5);
     }
     static float(name) {
         if (S.cache.has(name)) {
@@ -621,7 +625,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Stage = void 0;
 const THREE = __importStar(__webpack_require__(578));
 const knob_1 = __webpack_require__(0);
+const settings_1 = __webpack_require__(451);
 class Stage extends THREE.Object3D {
+    materials = [];
     constructor(synth) {
         super();
         let r = 2;
@@ -633,9 +639,11 @@ class Stage extends THREE.Object3D {
         for (let i = 0; i < 9; ++i) {
             const x = r * Math.sin(i / 9 * 2 * Math.PI);
             const z = -r * Math.cos(i / 9 * 2 * Math.PI);
-            const ballGeometry = new THREE.IcosahedronBufferGeometry(0.3, 3);
+            const ballGeometry = new THREE.IcosahedronBufferGeometry(0.3, /*detail=*/ settings_1.S.float('s'));
             ballGeometry.translate(0, 0.3, 0);
-            b = new THREE.Mesh(ballGeometry, this.getBlobMaterial(new THREE.Color('#885')));
+            const material = this.getBlobMaterial(new THREE.Color('#885'));
+            this.materials.push(material);
+            b = new THREE.Mesh(ballGeometry, material);
             b.position.set(x, 0, z);
             b.castShadow = true;
             this.add(b);
@@ -675,37 +683,56 @@ class Stage extends THREE.Object3D {
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 color: { value: color },
+                time: { value: 0 },
             },
             vertexShader: `
 uniform vec3 color;
+uniform float time;
+
 varying float v_Density;
-varying vec3 v_Color;
+varying vec4 v_WorldPosition;
+varying float v_Light;
 
 void main() {
   // A unit vector pointing from the object to the camera.
   vec4 worldPosition = modelMatrix * vec4(position, 1);
   worldPosition = worldPosition / worldPosition.w;
   vec3 cameraVector = normalize(cameraPosition - worldPosition.xyz);
-  v_Density = clamp(2.0 * pow(dot(cameraVector, normal), 0.8), 0.0, 1.0);
+  v_Density = clamp(1.5 * pow(dot(cameraVector, normal), 0.9), 0.0, 1.0);
   float light = dot(normal, vec3(0, 1, 0));
-  v_Color = light * color;
+  v_Light = light;
+  v_WorldPosition = worldPosition;
 
   gl_Position = projectionMatrix * modelViewMatrix * 
     vec4(position * 1.1, 1.0);
 }      
       `,
             fragmentShader: `
+uniform vec3 color;
+uniform float time;
+
 varying float v_Density;
-varying vec3 v_Color;
-            
+varying vec4 v_WorldPosition;
+varying float v_Light;
+                  
 void main() {
-  gl_FragColor = vec4(v_Color, v_Density);
-  // gl_FragColor = vec4(v_Normal, 0.5);
+  vec4 worldPosition = v_WorldPosition;
+  vec3 cf = sin(sin(4.1 * worldPosition.xyz * worldPosition.y + 0.2 * time) * 
+      4.0 + cos(3.2 * worldPosition.yzx * 2.3) * 2.1 * worldPosition.x + 0.314 * time);
+  float light = v_Light;
+  vec3 co = color * light * length(cf);
+
+  gl_FragColor = vec4(co, v_Density);
 }      
       `,
             transparent: true,
         });
         return material;
+    }
+    update(elapsedS) {
+        for (const m of this.materials) {
+            m.uniforms['time'].value = elapsedS;
+        }
     }
 }
 exports.Stage = Stage;

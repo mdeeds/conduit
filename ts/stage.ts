@@ -81,7 +81,6 @@ uniform vec3 color;
 uniform float time;
 
 varying float v_Density;
-varying vec3 v_Color;
 varying vec4 v_WorldPosition;
 varying float v_Light;
 
@@ -92,14 +91,8 @@ void main() {
   vec3 cameraVector = normalize(cameraPosition - worldPosition.xyz);
   v_Density = clamp(1.5 * pow(dot(cameraVector, normal), 0.9), 0.0, 1.0);
   float light = dot(normal, vec3(0, 1, 0));
-
-  vec3 cf = sin(sin(4.1 * worldPosition.xyz * worldPosition.y + 0.2 * time) * 
-      4.0 + cos(3.2 * worldPosition.yzx * 2.3) * 2.1 * worldPosition.x + 0.314 * time);
-
-  v_Color = color * light * length(cf);
   v_Light = light;
   v_WorldPosition = worldPosition;
-
 
   gl_Position = projectionMatrix * modelViewMatrix * 
     vec4(position * 1.1, 1.0);
@@ -110,7 +103,6 @@ uniform vec3 color;
 uniform float time;
 
 varying float v_Density;
-varying vec3 v_Color;
 varying vec4 v_WorldPosition;
 varying float v_Light;
                   
@@ -118,8 +110,6 @@ void main() {
   vec4 worldPosition = v_WorldPosition;
   vec3 cf = sin(sin(4.1 * worldPosition.xyz * worldPosition.y + 0.2 * time) * 
       4.0 + cos(3.2 * worldPosition.yzx * 2.3) * 2.1 * worldPosition.x + 0.314 * time);
- 
-  // vec3 co = v_Color;
   float light = v_Light;
   vec3 co = color * light * length(cf);
 
