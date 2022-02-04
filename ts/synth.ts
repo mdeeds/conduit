@@ -1,10 +1,10 @@
 import { Knob, KnobTarget } from "./knob";
 
 class ADSR {
-  public attack = 0;
-  public decay = 0;
-  public sustain = 1;
-  public release = 0;
+  public attack = 0.05;
+  public decay = 0.05;
+  public sustain = 0.3;
+  public release = 1;
   constructor(private audioCtx: AudioContext, private param: AudioParam) {
   }
 

@@ -6,6 +6,8 @@ import { Tracker } from "./tracker";
 import { ParticleSystem } from "./particleSystem";
 import { Synth } from "./synth";
 import { Stage } from "./stage";
+import { Assets } from "./assets";
+import { InstancedObject } from "./instancedObject";
 
 export class Game {
   private scene: THREE.Scene;
@@ -59,6 +61,22 @@ export class Game {
     this.setUpAnimation();
     this.setUpMouseBar();
     this.particleSystem = new ParticleSystem(this.scene);
+    this.setUpMeshes();
+  }
+
+  private async setUpMeshes() {
+    const light = new THREE.DirectionalLight(0xffffff, 1.0);
+    this.scene.add(light);
+    const gltf = await Assets.loadMesh('knob');
+    const knobs = new InstancedObject(gltf.scene, 50);
+    this.scene.add(knobs);
+    for (let i = 0; i < 30; ++i) {
+      const m = new THREE.Matrix4();
+      m.setPosition(Math.random() * 3 - 1.5,
+        Math.random() * 3 - 1.5,
+        Math.random() * 3 - 1.5);
+      knobs.addInstance(m);
+    }
   }
 
   private setUpMouseBar() {
