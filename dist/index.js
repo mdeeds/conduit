@@ -224,6 +224,7 @@ const synth_1 = __webpack_require__(671);
 const stage_1 = __webpack_require__(976);
 const assets_1 = __webpack_require__(398);
 const instancedObject_1 = __webpack_require__(62);
+const selection_1 = __webpack_require__(497);
 class Game {
     audioCtx;
     scene;
@@ -235,6 +236,7 @@ class Game {
     rightHand;
     synth;
     stage;
+    selection = new selection_1.Selection();
     constructor(audioCtx) {
         this.audioCtx = audioCtx;
         this.synth = new synth_1.Synth(audioCtx);
@@ -276,7 +278,7 @@ class Game {
         this.camera.position.set(0, 1.6, 0);
         this.camera.lookAt(0, 0.15, -2);
         this.scene.add(this.camera);
-        this.stage = new stage_1.Stage(this.synth);
+        this.stage = new stage_1.Stage(this.synth, this.selection);
         this.scene.add(this.stage);
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
@@ -313,6 +315,7 @@ class Game {
             const motion = tracker.updateMotion(p, currentTs, dt);
         });
     }
+    mousePosition = new THREE.Vector2();
     setUpRenderer() {
         this.renderer.shadowMap.enabled = true;
         this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -321,8 +324,12 @@ class Game {
         this.renderer.xr.enabled = true;
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.domElement.addEventListener('mousemove', (ev) => {
+            this.mousePosition.x = (ev.clientX / window.innerWidth) * 2 - 1;
+            this.mousePosition.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+            this.setRayFromCamera(this.mousePosition);
+        });
     }
-    elapsedS = 0;
     louderColor = new THREE.Color('orange');
     softerColor = new THREE.Color('lightblue');
     pointColor = new THREE.Color('yellow');
@@ -342,20 +349,18 @@ class Game {
         const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.2), 0.1 * (Math.random() - 0.5));
         this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
     }
+    elapsedS = 0;
     animationLoop() {
         const deltaS = Math.min(this.clock.getDelta(), 0.1);
         this.elapsedS += deltaS;
+        if (this.ray.direction.manhattanLength() > 0) {
+            this.selection.select(this.ray);
+        }
         this.particleSystem.step(this.camera, deltaS);
         this.stage.update(this.elapsedS);
         this.renderer.render(this.scene, this.camera);
-        const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
-        const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
-        if (leftMotion.velocity.length() > Math.random()) {
-            this.particleSystem.AddParticle(leftMotion.position, leftMotion.velocity, this.getColorForState(this.leftHand.getState()));
-        }
-        if (rightMotion.velocity.length() > Math.random()) {
-            this.particleSystem.AddParticle(rightMotion.position, rightMotion.velocity, this.getColorForState(this.rightHand.getState()));
-        }
+        this.handleHand(this.leftHand, deltaS);
+        this.handleHand(this.rightHand, deltaS);
         this.addRandomDot();
     }
     setUpAnimation() {
@@ -363,6 +368,29 @@ class Game {
         this.renderer.setAnimationLoop((function (self) {
             return function () { self.animationLoop(); };
         })(this));
+    }
+    ray = new THREE.Ray();
+    setRayFromCamera(coords) {
+        this.ray.origin.setFromMatrixPosition(this.camera.matrixWorld);
+        this.ray.direction.set(coords.x, coords.y, 0.5)
+            .unproject(this.camera).sub(this.ray.origin).normalize();
+    }
+    v1 = new THREE.Vector3();
+    v2 = new THREE.Vector3();
+    handleHand(hand, deltaS) {
+        const motion = hand.updateMotion(this.elapsedS, deltaS);
+        const state = hand.getState();
+        if (motion.velocity.length() > Math.random()) {
+            this.particleSystem.AddParticle(motion.position, motion.velocity, this.getColorForState(state));
+        }
+        if (state == 'point') {
+            this.ray.origin.copy(motion.position);
+            this.v1.copy(motion.position);
+            this.camera.getWorldPosition(this.v2);
+            this.v1.sub(this.v2);
+            this.v2.normalize();
+            this.ray.direction.copy(this.v2);
+        }
     }
 }
 exports.Game = Game;
@@ -455,7 +483,7 @@ class Hand {
         const xx = this.grip.matrix.elements[0];
         const xy = this.grip.matrix.elements[1];
         if (Math.abs(xx) > Math.abs(xy)) {
-            this.v.copy(this.grip.position);
+            this.grip.getWorldPosition(this.v);
             this.v.y = 0;
             if (this.v.length() > settings_1.S.float('pr')) {
                 this.state = 'point';
@@ -630,6 +658,123 @@ class Knob {
 }
 exports.Knob = Knob;
 //# sourceMappingURL=knob.js.map
+
+/***/ }),
+
+/***/ 115:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Orb = void 0;
+const THREE = __importStar(__webpack_require__(578));
+const knob_1 = __webpack_require__(0);
+const settings_1 = __webpack_require__(451);
+class Orb extends THREE.Object3D {
+    material;
+    static litColor = new THREE.Color('#ffa');
+    static darkColor = new THREE.Color('#885');
+    constructor(x, z, synth) {
+        super();
+        this.position.set(x, 0, z);
+        const ballGeometry = new THREE.IcosahedronBufferGeometry(0.3, /*detail=*/ settings_1.S.float('s'));
+        ballGeometry.translate(0, 0.3, 0);
+        this.material = this.getBlobMaterial(Orb.darkColor);
+        const b = new THREE.Mesh(ballGeometry, this.material);
+        b.castShadow = true;
+        synth.getVolumeKnob().addTarget(knob_1.KnobTarget.fromObjectScale(b));
+        this.add(b);
+    }
+    select() {
+        this.material.uniforms['color'].value = Orb.litColor;
+    }
+    deselect() {
+        this.material.uniforms['color'].value = Orb.darkColor;
+    }
+    getObject3D() {
+        return this;
+    }
+    getBlobMaterial(color) {
+        // Vertex shader
+        // uniform: cameraPosition
+        // attribute: position
+        // attribute: normal
+        // Fragment shader
+        // 
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: color },
+                time: { value: 0 },
+            },
+            vertexShader: `
+uniform vec3 color;
+uniform float time;
+
+varying float v_Density;
+varying vec4 v_WorldPosition;
+varying float v_Light;
+
+void main() {
+  // A unit vector pointing from the object to the camera.
+  vec4 worldPosition = modelMatrix * vec4(position, 1);
+  worldPosition = worldPosition / worldPosition.w;
+  vec3 cameraVector = normalize(cameraPosition - worldPosition.xyz);
+  v_Density = clamp(1.5 * pow(dot(cameraVector, normal), 0.9), 0.0, 1.0);
+  float light = dot(normal, vec3(0, 1, 0));
+  v_Light = light;
+  v_WorldPosition = worldPosition;
+
+  gl_Position = projectionMatrix * modelViewMatrix * 
+    vec4(position * 1.1, 1.0);
+}      
+      `,
+            fragmentShader: `
+uniform vec3 color;
+uniform float time;
+
+varying float v_Density;
+varying vec4 v_WorldPosition;
+varying float v_Light;
+                  
+void main() {
+  vec4 worldPosition = v_WorldPosition;
+  vec3 cf = sin(sin(4.1 * worldPosition.xyz * worldPosition.y + 0.2 * time) * 
+      4.0 + cos(3.2 * worldPosition.yzx * 2.3) * 2.1 * worldPosition.x + 0.314 * time);
+  float light = v_Light;
+  vec3 co = color * light * length(cf);
+
+  gl_FragColor = vec4(co, v_Density);
+}      
+      `,
+            transparent: true,
+        });
+        return material;
+    }
+    update(elapsedS) {
+        this.material.uniforms['time'].value = elapsedS;
+    }
+}
+exports.Orb = Orb;
+//# sourceMappingURL=orb.js.map
 
 /***/ }),
 
@@ -860,6 +1005,73 @@ exports.RollingVectorBuffer = RollingVectorBuffer;
 
 /***/ }),
 
+/***/ 497:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Selection = void 0;
+const THREE = __importStar(__webpack_require__(578));
+class Selection {
+    selectables = [];
+    selected = null;
+    callbacks = [];
+    constructor() { }
+    p = new THREE.Vector3();
+    select(ray) {
+        let closestDistance = 1e9;
+        let closestSelectable = null;
+        for (const selectable of this.selectables) {
+            selectable.getObject3D().getWorldPosition(this.p);
+            const distance = ray.distanceToPoint(this.p);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestSelectable = selectable;
+            }
+        }
+        if (this.selected == closestSelectable) {
+            return;
+        }
+        for (const cb of this.callbacks) {
+            cb(this.selected, closestSelectable);
+        }
+        if (this.selected) {
+            this.selected.deselect();
+        }
+        this.selected = closestSelectable;
+        this.selected.select();
+    }
+    add(selectable) {
+        this.selectables.push(selectable);
+    }
+    addChangeListener(cb) {
+        this.callbacks.push(cb);
+    }
+}
+exports.Selection = Selection;
+//# sourceMappingURL=selection.js.map
+
+/***/ }),
+
 /***/ 451:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -925,41 +1137,33 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Stage = void 0;
 const THREE = __importStar(__webpack_require__(578));
-const knob_1 = __webpack_require__(0);
-const settings_1 = __webpack_require__(451);
+const orb_1 = __webpack_require__(115);
 class Stage extends THREE.Object3D {
-    materials = [];
-    constructor(synth) {
+    selection;
+    orbs = [];
+    constructor(synth, selection) {
         super();
+        this.selection = selection;
         let r = 2;
         {
             const light = new THREE.HemisphereLight('#8bf', '#951', 0.5);
             this.add(light);
         }
-        let b = null;
         for (let i = 0; i < 9; ++i) {
             const x = r * Math.sin(i / 9 * 2 * Math.PI);
             const z = -r * Math.cos(i / 9 * 2 * Math.PI);
-            const ballGeometry = new THREE.IcosahedronBufferGeometry(0.3, /*detail=*/ settings_1.S.float('s'));
-            ballGeometry.translate(0, 0.3, 0);
-            const material = this.getBlobMaterial(new THREE.Color('#885'));
-            this.materials.push(material);
-            b = new THREE.Mesh(ballGeometry, material);
-            b.position.set(x, 0, z);
-            b.castShadow = true;
-            this.add(b);
+            const orb = new orb_1.Orb(x, z, synth);
+            this.add(orb);
+            this.orbs.push(orb);
+            this.selection.add(orb);
         }
-        if (b.material instanceof THREE.ShaderMaterial) {
-            b.material.uniforms['color'].value = new THREE.Color('#ffa');
-        }
-        synth.getVolumeKnob().addTarget(knob_1.KnobTarget.fromObjectScale(b));
         const light = new THREE.SpotLight('white', 
         /*intensity=*/ 2, 
         /*distance=*/ 0, 
         /*angle=*/ Math.PI / 32, 
         /*penumbra=*/ 0.15, 
         /*decay=*/ 2);
-        light.position.set(b.position.x, 5, b.position.z);
+        light.visible = false;
         light.castShadow = true;
         light.castShadow = true;
         light.shadow.mapSize.width = 1024;
@@ -967,72 +1171,26 @@ class Stage extends THREE.Object3D {
         light.shadow.camera.near = 1;
         light.shadow.camera.far = 10;
         light.shadow.focus = 1;
-        light.target = b;
         this.add(light);
+        selection.addChangeListener((previous, current) => {
+            if (current) {
+                light.position.copy(current.getObject3D().position);
+                light.position.y = 5;
+                light.target = current.getObject3D();
+                light.visible = true;
+            }
+            else {
+                light.visible = false;
+            }
+        });
         const floor = new THREE.Mesh(new THREE.PlaneBufferGeometry(5, 5), new THREE.MeshStandardMaterial({ color: '#444' }));
         floor.receiveShadow = true;
         floor.rotateX(-Math.PI / 2);
         this.add(floor);
     }
-    getBlobMaterial(color) {
-        // Vertex shader
-        // uniform: cameraPosition
-        // attribute: position
-        // attribute: normal
-        // Fragment shader
-        // 
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                color: { value: color },
-                time: { value: 0 },
-            },
-            vertexShader: `
-uniform vec3 color;
-uniform float time;
-
-varying float v_Density;
-varying vec4 v_WorldPosition;
-varying float v_Light;
-
-void main() {
-  // A unit vector pointing from the object to the camera.
-  vec4 worldPosition = modelMatrix * vec4(position, 1);
-  worldPosition = worldPosition / worldPosition.w;
-  vec3 cameraVector = normalize(cameraPosition - worldPosition.xyz);
-  v_Density = clamp(1.5 * pow(dot(cameraVector, normal), 0.9), 0.0, 1.0);
-  float light = dot(normal, vec3(0, 1, 0));
-  v_Light = light;
-  v_WorldPosition = worldPosition;
-
-  gl_Position = projectionMatrix * modelViewMatrix * 
-    vec4(position * 1.1, 1.0);
-}      
-      `,
-            fragmentShader: `
-uniform vec3 color;
-uniform float time;
-
-varying float v_Density;
-varying vec4 v_WorldPosition;
-varying float v_Light;
-                  
-void main() {
-  vec4 worldPosition = v_WorldPosition;
-  vec3 cf = sin(sin(4.1 * worldPosition.xyz * worldPosition.y + 0.2 * time) * 
-      4.0 + cos(3.2 * worldPosition.yzx * 2.3) * 2.1 * worldPosition.x + 0.314 * time);
-  float light = v_Light;
-  vec3 co = color * light * length(cf);
-
-  gl_FragColor = vec4(co, v_Density);
-}      
-      `,
-            transparent: true,
-        });
-        return material;
-    }
     update(elapsedS) {
-        for (const m of this.materials) {
-            m.uniforms['time'].value = elapsedS;
+        for (const o of this.orbs) {
+            o.update(elapsedS);
         }
     }
 }

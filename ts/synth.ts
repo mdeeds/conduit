@@ -11,12 +11,13 @@ class ADSR {
   // Returns the release time.
   public triggerAndRelease(durationS: number): number {
     let t = this.audioCtx.currentTime;
+    this.param.cancelScheduledValues(t);
     t += this.attack;
     this.param.linearRampToValueAtTime(1.0, t);
     t += this.decay;
+    const releaseTime = t;
     this.param.linearRampToValueAtTime(this.sustain, t);
     t += durationS;
-    const releaseTime = t;
     this.param.linearRampToValueAtTime(this.sustain, t);
     t += this.release;
     this.param.linearRampToValueAtTime(0, t);
