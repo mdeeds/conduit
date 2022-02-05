@@ -7,7 +7,7 @@ import { Synth } from "./synth";
 
 export class Stage extends THREE.Object3D {
   private orbs: Orb[] = [];
-  constructor(synth: Synth, private selection: Selection) {
+  constructor(private audioCtx: AudioContext, private selection: Selection) {
     super();
 
     let r = 2;
@@ -19,6 +19,7 @@ export class Stage extends THREE.Object3D {
     for (let i = 0; i < 9; ++i) {
       const x = r * Math.sin(i / 9 * 2 * Math.PI);
       const z = -r * Math.cos(i / 9 * 2 * Math.PI);
+      const synth = new Synth(audioCtx);
       const orb = new Orb(x, z, synth);
       this.add(orb);
       this.orbs.push(orb);

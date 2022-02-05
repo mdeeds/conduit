@@ -9,7 +9,7 @@ export class Orb extends THREE.Object3D implements Selectable {
   private static litColor = new THREE.Color('#ffa');
   private static darkColor = new THREE.Color('#885');
 
-  constructor(x: number, z: number, synth: Synth) {
+  constructor(x: number, z: number, private synth: Synth) {
     super();
     this.position.set(x, 0, z);
     const ballGeometry = new THREE.IcosahedronBufferGeometry(
@@ -20,6 +20,10 @@ export class Orb extends THREE.Object3D implements Selectable {
     b.castShadow = true;
     synth.getVolumeKnob().addTarget(KnobTarget.fromObjectScale(b));
     this.add(b);
+  }
+
+  public getSynth(): Synth {
+    return this.synth;
   }
 
   public select() {

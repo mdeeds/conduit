@@ -220,7 +220,6 @@ const hand_1 = __webpack_require__(673);
 const VRButton_js_1 = __webpack_require__(652);
 const tracker_1 = __webpack_require__(163);
 const particleSystem_1 = __webpack_require__(564);
-const synth_1 = __webpack_require__(671);
 const stage_1 = __webpack_require__(976);
 const assets_1 = __webpack_require__(398);
 const instancedObject_1 = __webpack_require__(62);
@@ -234,22 +233,24 @@ class Game {
     particleSystem;
     leftHand;
     rightHand;
-    synth;
     stage;
     selection = new selection_1.Selection();
+    currentSynth = null;
     constructor(audioCtx) {
         this.audioCtx = audioCtx;
-        this.synth = new synth_1.Synth(audioCtx);
         document.querySelector('body').addEventListener('keydown', (ev) => {
             switch (ev.code) {
                 case 'Space':
-                    this.synth.pluck();
+                    if (this.currentSynth)
+                        this.currentSynth.pluck();
                     break;
                 case 'ArrowUp':
-                    this.synth.getVolumeKnob().change(0.1);
+                    if (this.currentSynth)
+                        this.currentSynth.getVolumeKnob().change(0.1);
                     break;
                 case 'ArrowDown':
-                    this.synth.getVolumeKnob().change(-0.1);
+                    if (this.currentSynth)
+                        this.currentSynth.getVolumeKnob().change(-0.1);
                     break;
                 case 'KeyW':
                     this.camera.position.z -= 0.2;
@@ -278,13 +279,13 @@ class Game {
         this.camera.position.set(0, 1.6, 0);
         this.camera.lookAt(0, 0.15, -2);
         this.scene.add(this.camera);
-        this.stage = new stage_1.Stage(this.synth, this.selection);
+        this.stage = new stage_1.Stage(this.audioCtx, this.selection);
         this.scene.add(this.stage);
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
         this.setUpRenderer();
-        this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.synth);
-        this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.synth);
+        this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.selection);
+        this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.selection);
         this.setUpAnimation();
         this.setUpMouseBar();
         this.particleSystem = new particleSystem_1.ParticleSystem(this.scene);
@@ -424,22 +425,23 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Hand = void 0;
 const THREE = __importStar(__webpack_require__(578));
+const orb_1 = __webpack_require__(115);
 const settings_1 = __webpack_require__(451);
 const tracker_1 = __webpack_require__(163);
 class Hand {
     side;
     scene;
-    synth;
+    selection;
     gamepad;
     grip;
     tracker = new tracker_1.Tracker();
     state;
     pluckThreshold = -settings_1.S.float('p');
     volumeRate = settings_1.S.float('v');
-    constructor(side, renderer, scene, synth) {
+    constructor(side, renderer, scene, selection) {
         this.side = side;
         this.scene = scene;
-        this.synth = synth;
+        this.selection = selection;
         const index = (side == 'left') ? 0 : 1;
         this.grip = renderer.xr.getControllerGrip(index);
         // this.grip = new THREE.Group();
@@ -499,18 +501,25 @@ class Hand {
             this.state = 'softer';
         }
         const motion = this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
-        if (this.state === 'point') {
-            this.v.copy(motion.velocity);
-            this.v.normalize();
-            const goRate = motion.acceleration.dot(this.v);
-            if (goRate < this.pluckThreshold) {
-                this.synth.pluck();
+        const selected = this.selection.getSelected();
+        if (selected != null && selected instanceof orb_1.Orb) {
+            const synth = selected.getSynth();
+            switch (this.state) {
+                case 'pluck':
+                    this.v.copy(motion.velocity);
+                    this.v.normalize();
+                    const goRate = motion.acceleration.dot(this.v);
+                    if (goRate < this.pluckThreshold) {
+                        synth.pluck();
+                    }
+                    break;
+                case 'softer':
+                case 'louder':
+                    const magnitude = motion.velocity.length() *
+                        ((this.state === 'softer') ? -this.volumeRate : this.volumeRate);
+                    synth.getVolumeKnob().change(magnitude);
+                    break;
             }
-        }
-        else {
-            const magnitude = motion.velocity.length() *
-                ((this.state === 'softer') ? -this.volumeRate : this.volumeRate);
-            this.synth.getVolumeKnob().change(magnitude);
         }
         return motion;
     }
@@ -690,11 +699,13 @@ const THREE = __importStar(__webpack_require__(578));
 const knob_1 = __webpack_require__(0);
 const settings_1 = __webpack_require__(451);
 class Orb extends THREE.Object3D {
+    synth;
     material;
     static litColor = new THREE.Color('#ffa');
     static darkColor = new THREE.Color('#885');
     constructor(x, z, synth) {
         super();
+        this.synth = synth;
         this.position.set(x, 0, z);
         const ballGeometry = new THREE.IcosahedronBufferGeometry(0.3, /*detail=*/ settings_1.S.float('s'));
         ballGeometry.translate(0, 0.3, 0);
@@ -703,6 +714,9 @@ class Orb extends THREE.Object3D {
         b.castShadow = true;
         synth.getVolumeKnob().addTarget(knob_1.KnobTarget.fromObjectScale(b));
         this.add(b);
+    }
+    getSynth() {
+        return this.synth;
     }
     select() {
         this.material.uniforms['color'].value = Orb.litColor;
@@ -1066,6 +1080,9 @@ class Selection {
     addChangeListener(cb) {
         this.callbacks.push(cb);
     }
+    getSelected() {
+        return this.selected;
+    }
 }
 exports.Selection = Selection;
 //# sourceMappingURL=selection.js.map
@@ -1138,11 +1155,14 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Stage = void 0;
 const THREE = __importStar(__webpack_require__(578));
 const orb_1 = __webpack_require__(115);
+const synth_1 = __webpack_require__(671);
 class Stage extends THREE.Object3D {
+    audioCtx;
     selection;
     orbs = [];
-    constructor(synth, selection) {
+    constructor(audioCtx, selection) {
         super();
+        this.audioCtx = audioCtx;
         this.selection = selection;
         let r = 2;
         {
@@ -1152,6 +1172,7 @@ class Stage extends THREE.Object3D {
         for (let i = 0; i < 9; ++i) {
             const x = r * Math.sin(i / 9 * 2 * Math.PI);
             const z = -r * Math.cos(i / 9 * 2 * Math.PI);
+            const synth = new synth_1.Synth(audioCtx);
             const orb = new orb_1.Orb(x, z, synth);
             this.add(orb);
             this.orbs.push(orb);
@@ -1220,12 +1241,13 @@ class ADSR {
     // Returns the release time.
     triggerAndRelease(durationS) {
         let t = this.audioCtx.currentTime;
+        this.param.cancelScheduledValues(t);
         t += this.attack;
         this.param.linearRampToValueAtTime(1.0, t);
         t += this.decay;
+        const releaseTime = t;
         this.param.linearRampToValueAtTime(this.sustain, t);
         t += durationS;
-        const releaseTime = t;
         this.param.linearRampToValueAtTime(this.sustain, t);
         t += this.release;
         this.param.linearRampToValueAtTime(0, t);

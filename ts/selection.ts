@@ -46,4 +46,8 @@ export class Selection {
   public addChangeListener(cb: SelectionChangeCallback) {
     this.callbacks.push(cb);
   }
+
+  public getSelected() {
+    return this.selected;
+  }
 }

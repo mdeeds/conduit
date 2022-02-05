@@ -4,11 +4,11 @@ import { Hand, State } from "./hand";
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { Tracker } from "./tracker";
 import { ParticleSystem } from "./particleSystem";
-import { Synth } from "./synth";
 import { Stage } from "./stage";
 import { Assets } from "./assets";
 import { InstancedObject } from "./instancedObject";
 import { Selection } from "./selection";
+import { Synth } from "./synth";
 
 export class Game {
   private scene: THREE.Scene;
@@ -20,17 +20,16 @@ export class Game {
   private leftHand: Hand;
   private rightHand: Hand;
 
-  private synth: Synth;
   private stage: Stage;
   private selection = new Selection();
+  private currentSynth: Synth = null;
 
   constructor(private audioCtx: AudioContext) {
-    this.synth = new Synth(audioCtx);
     document.querySelector('body').addEventListener('keydown', (ev) => {
       switch (ev.code) {
-        case 'Space': this.synth.pluck(); break;
-        case 'ArrowUp': this.synth.getVolumeKnob().change(0.1); break;
-        case 'ArrowDown': this.synth.getVolumeKnob().change(-0.1); break;
+        case 'Space': if (this.currentSynth) this.currentSynth.pluck(); break;
+        case 'ArrowUp': if (this.currentSynth) this.currentSynth.getVolumeKnob().change(0.1); break;
+        case 'ArrowDown': if (this.currentSynth) this.currentSynth.getVolumeKnob().change(-0.1); break;
         case 'KeyW': this.camera.position.z -= 0.2; break;
         case 'KeyS': this.camera.position.z += 0.2; break;
         case 'KeyA': this.camera.position.x -= 0.2; break;
@@ -50,15 +49,15 @@ export class Game {
     this.camera.lookAt(0, 0.15, -2);
     this.scene.add(this.camera);
 
-    this.stage = new Stage(this.synth, this.selection);
+    this.stage = new Stage(this.audioCtx, this.selection);
     this.scene.add(this.stage);
 
     // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
     // this.scene.add(light);
 
     this.setUpRenderer();
-    this.leftHand = new Hand('left', this.renderer, this.scene, this.synth);
-    this.rightHand = new Hand('right', this.renderer, this.scene, this.synth);
+    this.leftHand = new Hand('left', this.renderer, this.scene, this.selection);
+    this.rightHand = new Hand('right', this.renderer, this.scene, this.selection);
 
     this.setUpAnimation();
     this.setUpMouseBar();

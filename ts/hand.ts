@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { Orb } from "./orb";
+import { Selection } from "./selection";
 import { S } from "./settings";
 
 import { Synth } from "./synth";
@@ -16,7 +18,7 @@ export class Hand {
   private volumeRate = S.float('v');
 
   constructor(readonly side: Side, renderer: THREE.WebGLRenderer,
-    private scene: THREE.Object3D, private synth: Synth) {
+    private scene: THREE.Object3D, private selection: Selection) {
     const index = (side == 'left') ? 0 : 1;
     this.grip = renderer.xr.getControllerGrip(index);
     // this.grip = new THREE.Group();
@@ -79,17 +81,27 @@ export class Hand {
     }
     const motion = this.tracker.updateMotion(
       this.grip.position, elapsedS, deltaS);
-    if (this.state === 'point') {
-      this.v.copy(motion.velocity);
-      this.v.normalize();
-      const goRate = motion.acceleration.dot(this.v);
-      if (goRate < this.pluckThreshold) {
-        this.synth.pluck();
+
+    const selected = this.selection.getSelected();
+    if (selected != null && selected instanceof Orb) {
+      const synth = selected.getSynth();
+      switch (this.state) {
+        case 'pluck':
+          this.v.copy(motion.velocity);
+          this.v.normalize();
+          const goRate = motion.acceleration.dot(this.v);
+          if (goRate < this.pluckThreshold) {
+            synth.pluck();
+          }
+          break;
+        case 'softer':
+        case 'louder':
+          const magnitude = motion.velocity.length() *
+            ((this.state === 'softer') ? -this.volumeRate : this.volumeRate);
+          synth.getVolumeKnob().change(magnitude);
+
+          break;
       }
-    } else {
-      const magnitude = motion.velocity.length() *
-        ((this.state === 'softer') ? -this.volumeRate : this.volumeRate);
-      this.synth.getVolumeKnob().change(magnitude);
     }
     return motion;
   }
