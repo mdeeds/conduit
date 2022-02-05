@@ -8,6 +8,7 @@ import { Synth } from "./synth";
 import { Stage } from "./stage";
 import { Assets } from "./assets";
 import { InstancedObject } from "./instancedObject";
+import { Selection } from "./selection";
 
 export class Game {
   private scene: THREE.Scene;
@@ -21,6 +22,7 @@ export class Game {
 
   private synth: Synth;
   private stage: Stage;
+  private selection = new Selection();
 
   constructor(private audioCtx: AudioContext) {
     this.synth = new Synth(audioCtx);
@@ -48,7 +50,7 @@ export class Game {
     this.camera.lookAt(0, 0.15, -2);
     this.scene.add(this.camera);
 
-    this.stage = new Stage(this.synth);
+    this.stage = new Stage(this.synth, this.selection);
     this.scene.add(this.stage);
 
     // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
@@ -94,6 +96,7 @@ export class Game {
     });
   }
 
+  private mousePosition = new THREE.Vector2();
   private setUpRenderer() {
     this.renderer.shadowMap.enabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -102,9 +105,14 @@ export class Game {
     this.renderer.xr.enabled = true;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  }
 
-  private elapsedS: number = 0;
+    this.renderer.domElement.addEventListener('mousemove',
+      (ev: MouseEvent) => {
+        this.mousePosition.x = (ev.clientX / window.innerWidth) * 2 - 1;
+        this.mousePosition.y = - (ev.clientY / window.innerHeight) * 2 + 1;
+        this.setRayFromCamera(this.mousePosition);
+      });
+  }
 
   private louderColor = new THREE.Color('orange');
   private softerColor = new THREE.Color('lightblue');
@@ -134,27 +142,22 @@ export class Game {
     this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
   }
 
+  private elapsedS: number = 0;
   private animationLoop() {
     const deltaS = Math.min(this.clock.getDelta(), 0.1);
     this.elapsedS += deltaS;
+
+    if (this.ray.direction.manhattanLength() > 0) {
+      this.selection.select(this.ray);
+    }
 
     this.particleSystem.step(this.camera, deltaS);
     this.stage.update(this.elapsedS);
 
     this.renderer.render(this.scene, this.camera);
+    this.handleHand(this.leftHand, deltaS);
+    this.handleHand(this.rightHand, deltaS);
 
-    const leftMotion = this.leftHand.updateMotion(this.elapsedS, deltaS);
-    const rightMotion = this.rightHand.updateMotion(this.elapsedS, deltaS);
-    if (leftMotion.velocity.length() > Math.random()) {
-      this.particleSystem.AddParticle(
-        leftMotion.position, leftMotion.velocity,
-        this.getColorForState(this.leftHand.getState()));
-    }
-    if (rightMotion.velocity.length() > Math.random()) {
-      this.particleSystem.AddParticle(
-        rightMotion.position, rightMotion.velocity,
-        this.getColorForState(this.rightHand.getState()));
-    }
     this.addRandomDot();
   }
   private setUpAnimation() {
@@ -164,4 +167,32 @@ export class Game {
         return function () { self.animationLoop(); }
       })(this));
   }
+
+  private ray = new THREE.Ray();
+  private setRayFromCamera(coords: THREE.Vector2) {
+    this.ray.origin.setFromMatrixPosition(this.camera.matrixWorld);
+    this.ray.direction.set(coords.x, coords.y, 0.5)
+      .unproject(this.camera).sub(this.ray.origin).normalize();
+  }
+
+  private v1 = new THREE.Vector3();
+  private v2 = new THREE.Vector3();
+  private handleHand(hand: Hand, deltaS: number) {
+    const motion = hand.updateMotion(this.elapsedS, deltaS);
+    const state = hand.getState();
+    if (motion.velocity.length() > Math.random()) {
+      this.particleSystem.AddParticle(
+        motion.position, motion.velocity,
+        this.getColorForState(state));
+    }
+    if (state == 'point') {
+      this.ray.origin.copy(motion.position);
+      this.v1.copy(motion.position);
+      this.camera.getWorldPosition(this.v2);
+      this.v1.sub(this.v2);
+      this.v2.normalize();
+      this.ray.direction.copy(this.v2);
+    }
+  }
+
 }

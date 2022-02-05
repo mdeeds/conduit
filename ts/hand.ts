@@ -65,7 +65,7 @@ export class Hand {
     const xx = this.grip.matrix.elements[0];
     const xy = this.grip.matrix.elements[1];
     if (Math.abs(xx) > Math.abs(xy)) {
-      this.v.copy(this.grip.position);
+      this.grip.getWorldPosition(this.v);
       this.v.y = 0;
       if (this.v.length() > S.float('pr')) {
         this.state = 'point';

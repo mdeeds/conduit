@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import { KnobTarget } from "./knob";
+import { Orb } from "./orb";
+import { Selectable, Selection, SelectionChangeCallback } from "./selection";
 import { S } from "./settings";
 import { Synth } from "./synth";
 
 export class Stage extends THREE.Object3D {
-  private materials: THREE.ShaderMaterial[] = [];
-  constructor(synth: Synth) {
+  private orbs: Orb[] = [];
+  constructor(synth: Synth, private selection: Selection) {
     super();
 
     let r = 2;
@@ -14,28 +16,14 @@ export class Stage extends THREE.Object3D {
       this.add(light);
     }
 
-    let b: THREE.Mesh = null;
     for (let i = 0; i < 9; ++i) {
       const x = r * Math.sin(i / 9 * 2 * Math.PI);
       const z = -r * Math.cos(i / 9 * 2 * Math.PI);
-      const ballGeometry = new THREE.IcosahedronBufferGeometry(
-        0.3, /*detail=*/S.float('s'));
-      ballGeometry.translate(0, 0.3, 0);
-      const material = this.getBlobMaterial(new THREE.Color('#885'));
-      this.materials.push(material);
-      b = new THREE.Mesh(
-        ballGeometry,
-        material);
-      b.position.set(x, 0, z);
-      b.castShadow = true;
-      this.add(b);
+      const orb = new Orb(x, z, synth);
+      this.add(orb);
+      this.orbs.push(orb);
+      this.selection.add(orb);
     }
-
-    if (b.material instanceof THREE.ShaderMaterial) {
-      b.material.uniforms['color'].value = new THREE.Color('#ffa');
-    }
-
-    synth.getVolumeKnob().addTarget(KnobTarget.fromObjectScale(b));
 
     const light = new THREE.SpotLight('white',
       /*intensity=*/ 2,
@@ -43,7 +31,7 @@ export class Stage extends THREE.Object3D {
       /*angle=*/Math.PI / 32,
       /*penumbra=*/0.15,
       /*decay=*/2);
-    light.position.set(b.position.x, 5, b.position.z);
+    light.visible = false;
     light.castShadow = true;
     light.castShadow = true;
     light.shadow.mapSize.width = 1024;
@@ -51,8 +39,18 @@ export class Stage extends THREE.Object3D {
     light.shadow.camera.near = 1;
     light.shadow.camera.far = 10;
     light.shadow.focus = 1;
-    light.target = b;
     this.add(light);
+
+    selection.addChangeListener((previous: Selectable, current: Selectable) => {
+      if (current) {
+        light.position.copy(current.getObject3D().position);
+        light.position.y = 5;
+        light.target = current.getObject3D();
+        light.visible = true;
+      } else {
+        light.visible = false;
+      }
+    });
 
 
     const floor = new THREE.Mesh(
@@ -64,69 +62,9 @@ export class Stage extends THREE.Object3D {
     this.add(floor);
   }
 
-  getBlobMaterial(color: THREE.Color): THREE.ShaderMaterial {
-    // Vertex shader
-    // uniform: cameraPosition
-    // attribute: position
-    // attribute: normal
-    // Fragment shader
-    // 
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        color: { value: color },
-        time: { value: 0 },
-      },
-      vertexShader: `
-uniform vec3 color;
-uniform float time;
-
-varying float v_Density;
-varying vec4 v_WorldPosition;
-varying float v_Light;
-
-void main() {
-  // A unit vector pointing from the object to the camera.
-  vec4 worldPosition = modelMatrix * vec4(position, 1);
-  worldPosition = worldPosition / worldPosition.w;
-  vec3 cameraVector = normalize(cameraPosition - worldPosition.xyz);
-  v_Density = clamp(1.5 * pow(dot(cameraVector, normal), 0.9), 0.0, 1.0);
-  float light = dot(normal, vec3(0, 1, 0));
-  v_Light = light;
-  v_WorldPosition = worldPosition;
-
-  gl_Position = projectionMatrix * modelViewMatrix * 
-    vec4(position * 1.1, 1.0);
-}      
-      `,
-      fragmentShader: `
-uniform vec3 color;
-uniform float time;
-
-varying float v_Density;
-varying vec4 v_WorldPosition;
-varying float v_Light;
-                  
-void main() {
-  vec4 worldPosition = v_WorldPosition;
-  vec3 cf = sin(sin(4.1 * worldPosition.xyz * worldPosition.y + 0.2 * time) * 
-      4.0 + cos(3.2 * worldPosition.yzx * 2.3) * 2.1 * worldPosition.x + 0.314 * time);
-  float light = v_Light;
-  vec3 co = color * light * length(cf);
-
-  gl_FragColor = vec4(co, v_Density);
-}      
-      `,
-      transparent: true,
-    });
-
-    return material;
-  }
-
   update(elapsedS: number) {
-    for (const m of this.materials) {
-      m.uniforms['time'].value = elapsedS;
+    for (const o of this.orbs) {
+      o.update(elapsedS);
     }
   }
-
-
 }
