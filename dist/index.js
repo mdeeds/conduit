@@ -221,8 +221,6 @@ const VRButton_js_1 = __webpack_require__(652);
 const tracker_1 = __webpack_require__(163);
 const particleSystem_1 = __webpack_require__(564);
 const stage_1 = __webpack_require__(976);
-const assets_1 = __webpack_require__(398);
-const instancedObject_1 = __webpack_require__(62);
 const selection_1 = __webpack_require__(497);
 const panel_1 = __webpack_require__(426);
 class Game {
@@ -299,14 +297,6 @@ class Game {
     async setUpMeshes() {
         const light = new THREE.DirectionalLight(0xffffff, 1.0);
         this.scene.add(light);
-        const gltf = await assets_1.Assets.loadMesh('knob');
-        const knobs = new instancedObject_1.InstancedObject(gltf.scene, 50);
-        this.scene.add(knobs);
-        for (let i = 0; i < 30; ++i) {
-            const m = new THREE.Matrix4();
-            m.setPosition(Math.random() * 3 - 1.5, Math.random() * 3 - 1.5, Math.random() * 3 - 1.5);
-            knobs.addInstance(m);
-        }
     }
     setUpMouseBar() {
         const body = document.querySelector('body');
@@ -823,6 +813,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Panel = void 0;
 const THREE = __importStar(__webpack_require__(578));
+const assets_1 = __webpack_require__(398);
+const instancedObject_1 = __webpack_require__(62);
 class Panel extends THREE.Object3D {
     canvasTexture = null;
     panelGeometry = null;
@@ -835,6 +827,7 @@ class Panel extends THREE.Object3D {
         this.panelMesh = new THREE.Mesh(this.panelGeometry, this.panelMaterial);
         this.add(this.panelMesh);
         this.setUpTexture();
+        this.setUpMeshes();
     }
     setUpTexture() {
         const loader = new THREE.ImageLoader();
@@ -851,6 +844,23 @@ class Panel extends THREE.Object3D {
             this.panelMaterial.needsUpdate = true;
             console.log('AAAAA');
         });
+    }
+    async setUpMeshes() {
+        const gltf = await assets_1.Assets.loadMesh('knob');
+        const knobs = new instancedObject_1.InstancedObject(gltf.scene, 50);
+        this.add(knobs);
+        for (let row = 0; row < 2; ++row) {
+            const y = 0.2 * row - 0.1;
+            for (let column = 0; column < 9; ++column) {
+                const x = 0.2 * column - 0.8;
+                const m = new THREE.Matrix4();
+                m.makeRotationX(Math.PI / 2);
+                m.setPosition(x, y, 0);
+                knobs.addInstance(m);
+            }
+        }
+        for (let i = 0; i < 30; ++i) {
+        }
     }
 }
 exports.Panel = Panel;

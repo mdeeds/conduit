@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { Assets } from "./assets";
+import { InstancedObject } from "./instancedObject";
 
 export class Panel extends THREE.Object3D {
 
@@ -14,6 +16,7 @@ export class Panel extends THREE.Object3D {
     this.panelMesh = new THREE.Mesh(this.panelGeometry, this.panelMaterial);
     this.add(this.panelMesh);
     this.setUpTexture();
+    this.setUpMeshes();
   }
 
 
@@ -33,5 +36,23 @@ export class Panel extends THREE.Object3D {
       console.log('AAAAA');
 
     });
+  }
+
+  async setUpMeshes() {
+    const gltf = await Assets.loadMesh('knob');
+    const knobs = new InstancedObject(gltf.scene, 50);
+    this.add(knobs);
+    for (let row = 0; row < 2; ++row) {
+      const y = 0.2 * row - 0.1;
+      for (let column = 0; column < 9; ++column) {
+        const x = 0.2 * column - 0.8;
+        const m = new THREE.Matrix4();
+        m.makeRotationX(Math.PI / 2);
+        m.setPosition(x, y, 0);
+        knobs.addInstance(m);
+      }
+    }
+    for (let i = 0; i < 30; ++i) {
+    }
   }
 }
