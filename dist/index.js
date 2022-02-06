@@ -224,6 +224,7 @@ const stage_1 = __webpack_require__(976);
 const assets_1 = __webpack_require__(398);
 const instancedObject_1 = __webpack_require__(62);
 const selection_1 = __webpack_require__(497);
+const panel_1 = __webpack_require__(426);
 class Game {
     audioCtx;
     scene;
@@ -281,6 +282,10 @@ class Game {
         this.scene.add(this.camera);
         this.stage = new stage_1.Stage(this.audioCtx, this.selection);
         this.scene.add(this.stage);
+        const panel = new panel_1.Panel();
+        panel.rotateX(-Math.PI / 6);
+        panel.position.set(0, 0.5, -0.6);
+        this.scene.add(panel);
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
         this.setUpRenderer();
@@ -789,6 +794,67 @@ void main() {
 }
 exports.Orb = Orb;
 //# sourceMappingURL=orb.js.map
+
+/***/ }),
+
+/***/ 426:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Panel = void 0;
+const THREE = __importStar(__webpack_require__(578));
+class Panel extends THREE.Object3D {
+    canvasTexture = null;
+    panelGeometry = null;
+    panelMaterial = null;
+    panelMesh;
+    constructor() {
+        super();
+        this.panelGeometry = new THREE.PlaneGeometry(2, 0.5);
+        this.panelMaterial = new THREE.MeshStandardMaterial({ color: 'green' });
+        this.panelMesh = new THREE.Mesh(this.panelGeometry, this.panelMaterial);
+        this.add(this.panelMesh);
+        this.setUpTexture();
+    }
+    setUpTexture() {
+        const loader = new THREE.ImageLoader();
+        loader.load('img/panel.png', (image) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(image, 0, 0);
+            this.canvasTexture = new THREE.CanvasTexture(canvas);
+            this.canvasTexture.needsUpdate = true;
+            this.panelMaterial.map = this.canvasTexture;
+            this.panelMaterial.color = null; // new THREE.Color('white');
+            this.panelMaterial.needsUpdate = true;
+            console.log('AAAAA');
+        });
+    }
+}
+exports.Panel = Panel;
+//# sourceMappingURL=panel.js.map
 
 /***/ }),
 

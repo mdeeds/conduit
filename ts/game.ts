@@ -9,6 +9,7 @@ import { Assets } from "./assets";
 import { InstancedObject } from "./instancedObject";
 import { Selection } from "./selection";
 import { Synth } from "./synth";
+import { Panel } from "./panel";
 
 export class Game {
   private scene: THREE.Scene;
@@ -51,6 +52,11 @@ export class Game {
 
     this.stage = new Stage(this.audioCtx, this.selection);
     this.scene.add(this.stage);
+
+    const panel = new Panel();
+    panel.rotateX(-Math.PI / 6);
+    panel.position.set(0, 0.5, -0.6);
+    this.scene.add(panel);
 
     // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
     // this.scene.add(light);
