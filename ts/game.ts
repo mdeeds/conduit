@@ -10,6 +10,7 @@ import { InstancedObject } from "./instancedObject";
 import { Selection } from "./selection";
 import { Synth } from "./synth";
 import { Panel } from "./panel";
+import { Orb } from "./orb";
 
 export class Game {
   private scene: THREE.Scene;
@@ -44,7 +45,7 @@ export class Game {
     this.scene = new THREE.Scene();
 
     this.camera = new THREE.PerspectiveCamera(
-      75, window.innerWidth / window.innerHeight, /*near=*/0.1,
+      75, 800 / 360, /*near=*/0.1,
       /*far=*/100);
     this.camera.position.set(0, 1.6, 0);
     this.camera.lookAt(0, 0.15, -2);
@@ -94,7 +95,8 @@ export class Game {
   private mousePosition = new THREE.Vector2();
   private setUpRenderer() {
     this.renderer.shadowMap.enabled = true;
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    // this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(800, 360);
     document.body.appendChild(this.renderer.domElement);
     document.body.appendChild(VRButton.createButton(this.renderer));
     this.renderer.xr.enabled = true;
@@ -154,6 +156,10 @@ export class Game {
 
     if (this.ray.direction.manhattanLength() > 0) {
       this.selection.select(this.ray);
+    }
+    const selected = this.selection.getSelected();
+    if (selected instanceof Orb) {
+      this.currentSynth = selected.getSynth();
     }
 
     this.particleSystem.step(this.camera, deltaS);

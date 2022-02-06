@@ -223,6 +223,7 @@ const particleSystem_1 = __webpack_require__(564);
 const stage_1 = __webpack_require__(976);
 const selection_1 = __webpack_require__(497);
 const panel_1 = __webpack_require__(426);
+const orb_1 = __webpack_require__(115);
 class Game {
     audioCtx;
     scene;
@@ -273,7 +274,7 @@ class Game {
         });
         this.renderer = new THREE.WebGLRenderer();
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, /*near=*/ 0.1, 
+        this.camera = new THREE.PerspectiveCamera(75, 800 / 360, /*near=*/ 0.1, 
         /*far=*/ 100);
         this.camera.position.set(0, 1.6, 0);
         this.camera.lookAt(0, 0.15, -2);
@@ -314,7 +315,8 @@ class Game {
     mousePosition = new THREE.Vector2();
     setUpRenderer() {
         this.renderer.shadowMap.enabled = true;
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(800, 360);
         document.body.appendChild(this.renderer.domElement);
         document.body.appendChild(VRButton_js_1.VRButton.createButton(this.renderer));
         this.renderer.xr.enabled = true;
@@ -361,6 +363,10 @@ class Game {
         this.elapsedS += deltaS;
         if (this.ray.direction.manhattanLength() > 0) {
             this.selection.select(this.ray);
+        }
+        const selected = this.selection.getSelected();
+        if (selected instanceof orb_1.Orb) {
+            this.currentSynth = selected.getSynth();
         }
         this.particleSystem.step(this.camera, deltaS);
         this.stage.update(this.elapsedS);
@@ -516,8 +522,8 @@ class Hand {
             const synth = selected.getSynth();
             switch (this.state) {
                 case 'pluck':
-                    const goRate = motion.acceleration.y;
-                    if (goRate > this.pluckThreshold) {
+                    if (motion.acceleration.y > this.pluckThreshold &&
+                        motion.velocity.y < 0) {
                         synth.pluck();
                     }
                     break;
@@ -894,7 +900,7 @@ class Panel extends THREE.Object3D {
         this.knobs = new instancedObject_1.InstancedObject(gltf.scene, 50);
         this.add(this.knobs);
         for (let row = 0; row < 2; ++row) {
-            const y = 0.2 * row - 0.1;
+            const y = 0.2 * row - 0.12;
             for (let column = 0; column < 9; ++column) {
                 const x = 0.2 * column - 0.8;
                 const m = new THREE.Matrix4();
@@ -1223,7 +1229,7 @@ class S {
         S.default.set('m', 0.5); // 0.5 is good for velocity tracking.
         S.default.set('mv', 0.5);
         S.default.set('ma', 0.05);
-        S.default.set('p', 0.5);
+        S.default.set('p', 5);
         S.default.set('v', 0.01);
         S.default.set('s', 5);
         S.default.set('pr', 0.5); // Pointing radius threshold.
@@ -1377,27 +1383,130 @@ class ADSR {
 }
 class Synth {
     audioCtx;
+    releaseDeadline = 0;
+    currentHz = 440;
+    // Frequency -> Octave -> 
+    //   sawOsc -> sawGain      
+    //   squareOsc -> squareGain
+    //                          
+    // env2 -> 
+    //   lowPassFilter
+    //   highPassFilter
+    //
+    // sineOsc -> sineGain
+    // subOsc -> subGain
+    // 
+    // env1 -> sourceGain
+    // overdrive -> volume
+    // Multiplier for the octave.  E.g. 16' = 1.0, 32' = 0.5
+    octave = 1.0;
     sawOsc;
     sawGain;
+    squareOsc;
+    squareGain;
+    sineOsc;
+    sineGain;
+    subOsc;
+    subGain;
+    sourceGain;
+    lowPassFilter;
+    highPassFilter;
     env1;
-    releaseDeadline = 0;
+    env2;
+    overdriveShaper;
     volumeGain;
     volumeKnob;
     constructor(audioCtx) {
         this.audioCtx = audioCtx;
+        // Saw Oscilator
         this.sawOsc = audioCtx.createOscillator();
+        this.sawOsc.channelCount = 1;
         this.sawOsc.type = 'sawtooth';
         this.sawGain = audioCtx.createGain();
-        this.sawGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        this.sawGain.channelCount = 1;
+        this.sawGain.gain.setValueAtTime(1, audioCtx.currentTime);
         this.sawOsc.connect(this.sawGain);
         this.sawOsc.start();
-        this.env1 = new ADSR(this.audioCtx, this.sawGain.gain);
+        // Square Oscilator
+        this.squareOsc = audioCtx.createOscillator();
+        this.squareOsc.channelCount = 1;
+        this.squareOsc.type = 'sawtooth';
+        this.squareGain = audioCtx.createGain();
+        this.squareGain.channelCount = 1;
+        this.squareGain.gain.setValueAtTime(1, audioCtx.currentTime);
+        this.squareOsc.connect(this.squareGain);
+        this.squareOsc.start();
+        // High Pass filter
+        this.highPassFilter = audioCtx.createBiquadFilter();
+        this.highPassFilter.channelCount = 1;
+        this.highPassFilter.gain.setValueAtTime(1, audioCtx.currentTime);
+        this.highPassFilter.frequency.setValueAtTime(250, audioCtx.currentTime);
+        this.highPassFilter.type = 'highpass';
+        this.sawGain.connect(this.highPassFilter);
+        this.squareGain.connect(this.highPassFilter);
+        // Low Pass Filter
+        this.lowPassFilter = audioCtx.createBiquadFilter();
+        this.lowPassFilter.channelCount = 1;
+        this.lowPassFilter.gain.setValueAtTime(1, audioCtx.currentTime);
+        this.lowPassFilter.frequency.setValueAtTime(2000, audioCtx.currentTime);
+        this.lowPassFilter.type = 'lowpass';
+        this.highPassFilter.connect(this.lowPassFilter);
+        // Sine Oscilator
+        this.sineOsc = audioCtx.createOscillator();
+        this.sineOsc.channelCount = 1;
+        this.sineOsc.type = 'sine';
+        this.sineGain = audioCtx.createGain();
+        this.sineGain.channelCount = 1;
+        this.sineGain.gain.setValueAtTime(1, audioCtx.currentTime);
+        this.sineOsc.connect(this.sineGain);
+        this.sineOsc.start();
+        // Sub Oscilator
+        this.subOsc = audioCtx.createOscillator();
+        this.subOsc.channelCount = 1;
+        this.subOsc.type = 'sine';
+        this.subGain = audioCtx.createGain();
+        this.subOsc.channelCount = 1;
+        this.subGain.gain.setValueAtTime(1, audioCtx.currentTime);
+        this.subOsc.connect(this.subGain);
+        this.subOsc.start();
+        // Env1
+        this.sourceGain = audioCtx.createGain();
+        this.sourceGain.channelCount = 1;
+        this.sourceGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        this.env1 = new ADSR(this.audioCtx, this.sourceGain.gain);
+        this.lowPassFilter.connect(this.sourceGain);
+        this.sineGain.connect(this.sourceGain);
+        this.subGain.connect(this.sourceGain);
+        // Overdrive
+        this.overdriveShaper = audioCtx.createWaveShaper();
+        this.overdriveShaper.channelCount = 1;
+        const curve = new Float32Array(1001);
+        this.setOverdriveShape(1.0, curve);
+        this.overdriveShaper.curve = curve;
+        this.sourceGain.connect(this.overdriveShaper);
+        // Volume
         this.volumeGain = this.audioCtx.createGain();
+        this.volumeGain.channelCount = 2;
         this.volumeGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
         this.volumeKnob = new knob_1.Knob(0.05, 1, 1);
         this.volumeKnob.addTarget(knob_1.KnobTarget.fromAudioParam(this.volumeGain.gain, this.audioCtx, 0.05));
-        this.sawGain.connect(this.volumeGain);
+        this.sourceGain.connect(this.volumeGain);
         this.volumeGain.connect(audioCtx.destination);
+        this.setNote(64);
+    }
+    twelfthRootOfTwo = Math.pow(2, 1 / 12);
+    midiNumberToHz(note) {
+        const aboveA = note - 69;
+        return 440 * Math.pow(this.twelfthRootOfTwo, aboveA);
+    }
+    setNote(note) {
+        const hz = this.midiNumberToHz(note) * this.octave;
+        const now = this.audioCtx.currentTime;
+        this.sineOsc.frequency.setValueAtTime(hz, now);
+        this.sawOsc.frequency.setValueAtTime(hz, now);
+        this.squareOsc.frequency.setValueAtTime(hz, now);
+        this.subOsc.frequency.setValueAtTime(hz / 2, now);
+        this.currentHz = hz;
     }
     pluck() {
         if (this.audioCtx.currentTime > this.releaseDeadline) {
@@ -1406,6 +1515,14 @@ class Synth {
     }
     getVolumeKnob() {
         return this.volumeKnob;
+    }
+    setOverdriveShape(power, curve) {
+        const bucketCount = curve.length - 1;
+        for (let i = 0; i <= bucketCount; ++i) {
+            const x = i / bucketCount;
+            curve[i] = Math.pow(x, power);
+        }
+        console.log('Overdrive shaped.');
     }
 }
 exports.Synth = Synth;

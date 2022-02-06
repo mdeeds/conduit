@@ -6,7 +6,7 @@ export class S {
     S.default.set('m', 0.5);  // 0.5 is good for velocity tracking.
     S.default.set('mv', 0.5);
     S.default.set('ma', 0.05);
-    S.default.set('p', 0.5);
+    S.default.set('p', 5);
     S.default.set('v', 0.01);
     S.default.set('s', 5);
     S.default.set('pr', 0.5);  // Pointing radius threshold.

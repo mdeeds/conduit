@@ -90,8 +90,8 @@ export class Hand {
       const synth = selected.getSynth();
       switch (this.state) {
         case 'pluck':
-          const goRate = motion.acceleration.y;
-          if (goRate > this.pluckThreshold) {
+          if (motion.acceleration.y > this.pluckThreshold &&
+            motion.velocity.y < 0) {
             synth.pluck();
           }
           break;

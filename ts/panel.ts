@@ -64,7 +64,7 @@ export class Panel extends THREE.Object3D {
     this.knobs = new InstancedObject(gltf.scene, 50);
     this.add(this.knobs);
     for (let row = 0; row < 2; ++row) {
-      const y = 0.2 * row - 0.1;
+      const y = 0.2 * row - 0.12;
       for (let column = 0; column < 9; ++column) {
         const x = 0.2 * column - 0.8;
         const m = new THREE.Matrix4();
