@@ -1480,7 +1480,8 @@ class Synth {
         // Overdrive
         this.overdriveShaper = audioCtx.createWaveShaper();
         this.overdriveShaper.channelCount = 1;
-        const curve = new Float32Array(1001);
+        //const curve = new Float32Array([-1, 1]);
+        const curve = new Float32Array(101);
         this.setOverdriveShape(1.0, curve);
         this.overdriveShaper.curve = curve;
         this.sourceGain.connect(this.overdriveShaper);
@@ -1490,7 +1491,7 @@ class Synth {
         this.volumeGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
         this.volumeKnob = new knob_1.Knob(0.05, 1, 1);
         this.volumeKnob.addTarget(knob_1.KnobTarget.fromAudioParam(this.volumeGain.gain, this.audioCtx, 0.05));
-        this.sourceGain.connect(this.volumeGain);
+        this.overdriveShaper.connect(this.volumeGain);
         this.volumeGain.connect(audioCtx.destination);
         this.setNote(64);
     }
@@ -1519,8 +1520,10 @@ class Synth {
     setOverdriveShape(power, curve) {
         const bucketCount = curve.length - 1;
         for (let i = 0; i <= bucketCount; ++i) {
-            const x = i / bucketCount;
-            curve[i] = Math.pow(x, power);
+            const j = i - bucketCount / 2;
+            const sign = (j < 0) ? -1 : 1;
+            const x = Math.abs(j / (bucketCount / 2));
+            curve[i] = sign * Math.pow(x, power);
         }
         console.log('Overdrive shaped.');
     }
