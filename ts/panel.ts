@@ -8,6 +8,7 @@ export class Panel extends THREE.Object3D {
   private panelGeometry: THREE.PlaneGeometry = null;
   private panelMaterial: THREE.MeshStandardMaterial = null;
   private panelMesh: THREE.Mesh;
+  private knobs: InstancedObject = null;
 
   constructor() {
     super();
@@ -34,14 +35,34 @@ export class Panel extends THREE.Object3D {
       this.panelMaterial.color = null; // new THREE.Color('white');
       this.panelMaterial.needsUpdate = true;
       console.log('AAAAA');
-
     });
+  }
+
+  private knobRotateOne = (() => {
+    const m = new THREE.Matrix4();
+    m.makeRotationZ(Math.PI * 2 / 12 * 10);
+    return m;
+  })();
+
+  // position should be between 0 and 1.
+  // 0 is the seven o'clock position, and 1 is 5 o'clock
+  private setKnobPosition(i: number, position: number) {
+    const m = new THREE.Matrix4();
+    this.knobs.getMatrixAt(i, m);
+    const v = new THREE.Vector3();
+    v.setFromMatrixPosition(m);
+    m.makeRotationX(Math.PI / 2);
+    const m2 = new THREE.Matrix4();
+    m2.makeRotationY(Math.PI * 2 / 12 * (-position * 10 - 5));
+    m.multiply(m2);
+    m.setPosition(v);
+    this.knobs.setMatrixAt(i, m);
   }
 
   async setUpMeshes() {
     const gltf = await Assets.loadMesh('knob');
-    const knobs = new InstancedObject(gltf.scene, 50);
-    this.add(knobs);
+    this.knobs = new InstancedObject(gltf.scene, 50);
+    this.add(this.knobs);
     for (let row = 0; row < 2; ++row) {
       const y = 0.2 * row - 0.1;
       for (let column = 0; column < 9; ++column) {
@@ -49,10 +70,11 @@ export class Panel extends THREE.Object3D {
         const m = new THREE.Matrix4();
         m.makeRotationX(Math.PI / 2);
         m.setPosition(x, y, 0);
-        knobs.addInstance(m);
+        this.knobs.addInstance(m);
       }
     }
-    for (let i = 0; i < 30; ++i) {
+    for (let i = 0; i < this.knobs.getInstanceCount(); ++i) {
+      this.setKnobPosition(i, Math.random());
     }
   }
 }

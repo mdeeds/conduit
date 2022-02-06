@@ -14,7 +14,7 @@ export class Hand {
   private grip: THREE.Group;
   public tracker = new Tracker();
   private state: State;
-  private pluckThreshold = -S.float('p');
+  private pluckThreshold = S.float('p');
   private volumeRate = S.float('v');
 
   constructor(readonly side: Side, renderer: THREE.WebGLRenderer,
@@ -87,10 +87,8 @@ export class Hand {
       const synth = selected.getSynth();
       switch (this.state) {
         case 'pluck':
-          this.v.copy(motion.velocity);
-          this.v.normalize();
-          const goRate = motion.acceleration.dot(this.v);
-          if (goRate < this.pluckThreshold) {
+          const goRate = motion.acceleration.y;
+          if (goRate > this.pluckThreshold) {
             synth.pluck();
           }
           break;

@@ -57,4 +57,11 @@ export class InstancedObject extends THREE.Object3D {
       m.instanceMatrix.needsUpdate = true;
     }
   }
+  public getMatrixAt(i: number, out: THREE.Matrix4) {
+    this.meshes[0].getMatrixAt(i, out);
+  }
+
+  public getInstanceCount(): number {
+    return this.instanceCount;
+  }
 }

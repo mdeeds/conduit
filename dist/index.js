@@ -431,7 +431,7 @@ class Hand {
     grip;
     tracker = new tracker_1.Tracker();
     state;
-    pluckThreshold = -settings_1.S.float('p');
+    pluckThreshold = settings_1.S.float('p');
     volumeRate = settings_1.S.float('v');
     constructor(side, renderer, scene, selection) {
         this.side = side;
@@ -501,10 +501,8 @@ class Hand {
             const synth = selected.getSynth();
             switch (this.state) {
                 case 'pluck':
-                    this.v.copy(motion.velocity);
-                    this.v.normalize();
-                    const goRate = motion.acceleration.dot(this.v);
-                    if (goRate < this.pluckThreshold) {
+                    const goRate = motion.acceleration.y;
+                    if (goRate > this.pluckThreshold) {
                         synth.pluck();
                     }
                     break;
@@ -603,6 +601,12 @@ class InstancedObject extends THREE.Object3D {
             m.setMatrixAt(i, matrix);
             m.instanceMatrix.needsUpdate = true;
         }
+    }
+    getMatrixAt(i, out) {
+        this.meshes[0].getMatrixAt(i, out);
+    }
+    getInstanceCount() {
+        return this.instanceCount;
     }
 }
 exports.InstancedObject = InstancedObject;
@@ -820,6 +824,7 @@ class Panel extends THREE.Object3D {
     panelGeometry = null;
     panelMaterial = null;
     panelMesh;
+    knobs = null;
     constructor() {
         super();
         this.panelGeometry = new THREE.PlaneGeometry(2, 0.5);
@@ -845,10 +850,29 @@ class Panel extends THREE.Object3D {
             console.log('AAAAA');
         });
     }
+    knobRotateOne = (() => {
+        const m = new THREE.Matrix4();
+        m.makeRotationZ(Math.PI * 2 / 12 * 10);
+        return m;
+    })();
+    // position should be between 0 and 1.
+    // 0 is the seven o'clock position, and 1 is 5 o'clock
+    setKnobPosition(i, position) {
+        const m = new THREE.Matrix4();
+        this.knobs.getMatrixAt(i, m);
+        const v = new THREE.Vector3();
+        v.setFromMatrixPosition(m);
+        m.makeRotationX(Math.PI / 2);
+        const m2 = new THREE.Matrix4();
+        m2.makeRotationY(Math.PI * 2 / 12 * (-position * 10 - 5));
+        m.multiply(m2);
+        m.setPosition(v);
+        this.knobs.setMatrixAt(i, m);
+    }
     async setUpMeshes() {
         const gltf = await assets_1.Assets.loadMesh('knob');
-        const knobs = new instancedObject_1.InstancedObject(gltf.scene, 50);
-        this.add(knobs);
+        this.knobs = new instancedObject_1.InstancedObject(gltf.scene, 50);
+        this.add(this.knobs);
         for (let row = 0; row < 2; ++row) {
             const y = 0.2 * row - 0.1;
             for (let column = 0; column < 9; ++column) {
@@ -856,10 +880,11 @@ class Panel extends THREE.Object3D {
                 const m = new THREE.Matrix4();
                 m.makeRotationX(Math.PI / 2);
                 m.setPosition(x, y, 0);
-                knobs.addInstance(m);
+                this.knobs.addInstance(m);
             }
         }
-        for (let i = 0; i < 30; ++i) {
+        for (let i = 0; i < this.knobs.getInstanceCount(); ++i) {
+            this.setKnobPosition(i, Math.random());
         }
     }
 }
