@@ -151,7 +151,6 @@ export class Synth {
     this.volumeKnob.addTarget(KnobTarget.fromAudioParam(
       this.volumeGain.gain, this.audioCtx, 0.05));
     this.sourceGain.connect(this.volumeGain);
-
     this.volumeGain.connect(audioCtx.destination);
 
     this.setNote(64);
