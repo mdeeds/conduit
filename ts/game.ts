@@ -125,7 +125,11 @@ export class Game {
     }
   }
 
-  private addRandomDot() {
+  private slowColor = new THREE.Color('#f00');
+  private mediumColor = new THREE.Color('#ff0');
+  private fastColor = new THREE.Color('#fff');
+
+  private addRandomDot(deltaS: number) {
     const p = new THREE.Vector3(
       6 * (Math.random() - 0.5),
       3 * (Math.random()),
@@ -134,7 +138,13 @@ export class Game {
       0.1 * (Math.random() - 0.5),
       0.1 * (Math.random() - 0.2),
       0.1 * (Math.random() - 0.5));
-    this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
+    let color = this.fastColor;
+    if (deltaS > 1 / 50) {
+      color = this.slowColor;
+    } else if (deltaS > 1 / 85) {
+      color = this.mediumColor;
+    }
+    this.particleSystem.AddParticle(p, v, color);
   }
 
   private elapsedS: number = 0;
@@ -153,7 +163,7 @@ export class Game {
     this.handleHand(this.leftHand, deltaS);
     this.handleHand(this.rightHand, deltaS);
 
-    this.addRandomDot();
+    this.addRandomDot(deltaS);
   }
   private setUpAnimation() {
     this.clock = new THREE.Clock();

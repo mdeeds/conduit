@@ -340,10 +340,20 @@ class Game {
             default: return this.fofColor;
         }
     }
-    addRandomDot() {
+    slowColor = new THREE.Color('#f00');
+    mediumColor = new THREE.Color('#ff0');
+    fastColor = new THREE.Color('#fff');
+    addRandomDot(deltaS) {
         const p = new THREE.Vector3(6 * (Math.random() - 0.5), 3 * (Math.random()), 6 * (Math.random() - 0.5));
         const v = new THREE.Vector3(0.1 * (Math.random() - 0.5), 0.1 * (Math.random() - 0.2), 0.1 * (Math.random() - 0.5));
-        this.particleSystem.AddParticle(p, v, new THREE.Color('white'));
+        let color = this.fastColor;
+        if (deltaS > 1 / 50) {
+            color = this.slowColor;
+        }
+        else if (deltaS > 1 / 85) {
+            color = this.mediumColor;
+        }
+        this.particleSystem.AddParticle(p, v, color);
     }
     elapsedS = 0;
     animationLoop() {
@@ -357,7 +367,7 @@ class Game {
         this.renderer.render(this.scene, this.camera);
         this.handleHand(this.leftHand, deltaS);
         this.handleHand(this.rightHand, deltaS);
-        this.addRandomDot();
+        this.addRandomDot(deltaS);
     }
     setUpAnimation() {
         this.clock = new THREE.Clock();
@@ -553,6 +563,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.InstancedObject = void 0;
 const THREE = __importStar(__webpack_require__(578));
+const three_1 = __webpack_require__(578);
 class InstancedObject extends THREE.Object3D {
     maxInstanceCount;
     meshes = [];
@@ -573,6 +584,10 @@ class InstancedObject extends THREE.Object3D {
         }
     }
     addMesh(mesh) {
+        console.log(`Mesh: ${mesh.name}`);
+        if (mesh.material instanceof three_1.MeshStandardMaterial) {
+            mesh.material.side = THREE.FrontSide;
+        }
         const matrix = new THREE.Matrix4();
         mesh.updateMatrix();
         matrix.copy(mesh.matrix);

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { MeshStandardMaterial } from "three";
 
 export class InstancedObject extends THREE.Object3D {
   private meshes: THREE.InstancedMesh[] = [];
@@ -20,6 +21,10 @@ export class InstancedObject extends THREE.Object3D {
   }
 
   private addMesh(mesh: THREE.Mesh) {
+    console.log(`Mesh: ${mesh.name}`);
+    if (mesh.material instanceof MeshStandardMaterial) {
+      mesh.material.side = THREE.FrontSide;
+    }
     const matrix = new THREE.Matrix4();
     mesh.updateMatrix();
     matrix.copy(mesh.matrix);
