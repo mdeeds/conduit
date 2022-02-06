@@ -287,8 +287,8 @@ class Game {
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
         this.setUpRenderer();
-        this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.selection);
-        this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.selection);
+        this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.selection, this.camera);
+        this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.selection, this.camera);
         this.setUpAnimation();
         this.setUpMouseBar();
         this.particleSystem = new particleSystem_1.ParticleSystem(this.scene);
@@ -427,16 +427,18 @@ class Hand {
     side;
     scene;
     selection;
+    camera;
     gamepad;
     grip;
     tracker = new tracker_1.Tracker();
     state;
     pluckThreshold = settings_1.S.float('p');
     volumeRate = settings_1.S.float('v');
-    constructor(side, renderer, scene, selection) {
+    constructor(side, renderer, scene, selection, camera) {
         this.side = side;
         this.scene = scene;
         this.selection = selection;
+        this.camera = camera;
         const index = (side == 'left') ? 0 : 1;
         this.grip = renderer.xr.getControllerGrip(index);
         // this.grip = new THREE.Group();
@@ -475,12 +477,15 @@ class Hand {
     }
     getState() { return this.state; }
     v = new THREE.Vector3();
+    c = new THREE.Vector3();
     updateMotion(elapsedS, deltaS) {
         this.grip.updateMatrix();
         const xx = this.grip.matrix.elements[0];
         const xy = this.grip.matrix.elements[1];
         if (Math.abs(xx) > Math.abs(xy)) {
             this.grip.getWorldPosition(this.v);
+            this.camera.getWorldPosition(this.c);
+            this.v.sub(this.c);
             this.v.y = 0;
             if (this.v.length() > settings_1.S.float('pr')) {
                 this.state = 'point';
@@ -1203,7 +1208,7 @@ class S {
         S.default.set('m', 0.5); // 0.5 is good for velocity tracking.
         S.default.set('mv', 0.5);
         S.default.set('ma', 0.05);
-        S.default.set('p', 0.2);
+        S.default.set('p', 0.5);
         S.default.set('v', 0.01);
         S.default.set('s', 5);
         S.default.set('pr', 0.5); // Pointing radius threshold.

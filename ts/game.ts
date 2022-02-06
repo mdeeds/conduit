@@ -62,8 +62,8 @@ export class Game {
     // this.scene.add(light);
 
     this.setUpRenderer();
-    this.leftHand = new Hand('left', this.renderer, this.scene, this.selection);
-    this.rightHand = new Hand('right', this.renderer, this.scene, this.selection);
+    this.leftHand = new Hand('left', this.renderer, this.scene, this.selection, this.camera);
+    this.rightHand = new Hand('right', this.renderer, this.scene, this.selection, this.camera);
 
     this.setUpAnimation();
     this.setUpMouseBar();

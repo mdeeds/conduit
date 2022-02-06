@@ -3,7 +3,6 @@ import { Orb } from "./orb";
 import { Selection } from "./selection";
 import { S } from "./settings";
 
-import { Synth } from "./synth";
 import { Motion, Tracker } from "./tracker";
 
 export type Side = 'left' | 'right';
@@ -18,7 +17,8 @@ export class Hand {
   private volumeRate = S.float('v');
 
   constructor(readonly side: Side, renderer: THREE.WebGLRenderer,
-    private scene: THREE.Object3D, private selection: Selection) {
+    private scene: THREE.Object3D, private selection: Selection,
+    private camera: THREE.Camera) {
     const index = (side == 'left') ? 0 : 1;
     this.grip = renderer.xr.getControllerGrip(index);
     // this.grip = new THREE.Group();
@@ -62,12 +62,15 @@ export class Hand {
   public getState(): State { return this.state; }
 
   private v = new THREE.Vector3();
+  private c = new THREE.Vector3();
   public updateMotion(elapsedS: number, deltaS: number): Motion {
     this.grip.updateMatrix();
     const xx = this.grip.matrix.elements[0];
     const xy = this.grip.matrix.elements[1];
     if (Math.abs(xx) > Math.abs(xy)) {
       this.grip.getWorldPosition(this.v);
+      this.camera.getWorldPosition(this.c);
+      this.v.sub(this.c);
       this.v.y = 0;
       if (this.v.length() > S.float('pr')) {
         this.state = 'point';
