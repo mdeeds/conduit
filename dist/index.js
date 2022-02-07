@@ -222,7 +222,6 @@ const tracker_1 = __webpack_require__(163);
 const particleSystem_1 = __webpack_require__(564);
 const stage_1 = __webpack_require__(976);
 const selection_1 = __webpack_require__(497);
-const panel_1 = __webpack_require__(426);
 const orb_1 = __webpack_require__(115);
 class Game {
     audioCtx;
@@ -281,10 +280,6 @@ class Game {
         this.scene.add(this.camera);
         this.stage = new stage_1.Stage(this.audioCtx, this.selection, this.camera);
         this.scene.add(this.stage);
-        const panel = new panel_1.Panel();
-        // panel.rotateX(Math.PI / 6);
-        panel.position.set(0, 2, -0.8);
-        this.scene.add(panel);
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
         this.setUpRenderer();
@@ -845,14 +840,18 @@ exports.Panel = void 0;
 const THREE = __importStar(__webpack_require__(578));
 const assets_1 = __webpack_require__(398);
 const instancedObject_1 = __webpack_require__(62);
+const knob_1 = __webpack_require__(0);
 class Panel extends THREE.Object3D {
+    synth;
     canvasTexture = null;
     panelGeometry = null;
     panelMaterial = null;
     panelMesh;
     knobs = null;
-    constructor() {
+    volumeTarget;
+    constructor(synth) {
         super();
+        this.synth = synth;
         this.panelGeometry = new THREE.PlaneGeometry(2, 0.5);
         this.panelMaterial = new THREE.MeshStandardMaterial({
             emissive: 0.5
@@ -861,6 +860,10 @@ class Panel extends THREE.Object3D {
         this.add(this.panelMesh);
         this.setUpTexture();
         this.setUpMeshes();
+        this.volumeTarget = new knob_1.KnobTarget((x) => {
+            this.setKnobPosition(this.knobs.getInstanceCount() - 1, x);
+        });
+        synth.getVolumeKnob().addTarget(this.volumeTarget);
     }
     setUpTexture() {
         const loader = new THREE.ImageLoader();
@@ -1284,6 +1287,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Stage = void 0;
 const THREE = __importStar(__webpack_require__(578));
 const orb_1 = __webpack_require__(115);
+const panel_1 = __webpack_require__(426);
 const synth_1 = __webpack_require__(671);
 class Stage extends THREE.Object3D {
     audioCtx;
@@ -1309,6 +1313,9 @@ class Stage extends THREE.Object3D {
             this.orbs.push(orb);
             this.selection.add(orb);
         }
+        const panel = new panel_1.Panel(this.orbs[0].getSynth());
+        panel.position.set(0, 2, -0.8);
+        this.add(panel);
         const light = new THREE.SpotLight('white', 
         /*intensity=*/ 2, 
         /*distance=*/ 0, 
