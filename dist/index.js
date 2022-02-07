@@ -653,7 +653,7 @@ class KnobTarget {
     }
     static fromObjectScale(object) {
         return new KnobTarget((x) => {
-            object.scale.setLength(x * 1.73205); // Root of three
+            object.scale.setLength(x * 1.73205 + 0.01); // Root of three
         });
     }
     setValue(value) {
@@ -861,7 +861,9 @@ class Panel extends THREE.Object3D {
         this.setUpTexture();
         this.setUpMeshes();
         this.volumeTarget = new knob_1.KnobTarget((x) => {
-            this.setKnobPosition(this.knobs.getInstanceCount() - 1, x);
+            if (this.knobs && this.knobs.getInstanceCount() > 0) {
+                this.setKnobPosition(this.knobs.getInstanceCount() - 1, x);
+            }
         });
         synth.getVolumeKnob().addTarget(this.volumeTarget);
     }
@@ -878,7 +880,6 @@ class Panel extends THREE.Object3D {
             this.panelMaterial.map = this.canvasTexture;
             this.panelMaterial.color = null; // new THREE.Color('white');
             this.panelMaterial.needsUpdate = true;
-            console.log('AAAAA');
         });
     }
     knobRotateOne = (() => {
@@ -889,13 +890,14 @@ class Panel extends THREE.Object3D {
     // position should be between 0 and 1.
     // 0 is the seven o'clock position, and 1 is 5 o'clock
     setKnobPosition(i, position) {
+        console.log(`AAAAA: ${position}`);
         const m = new THREE.Matrix4();
         this.knobs.getMatrixAt(i, m);
         const v = new THREE.Vector3();
         v.setFromMatrixPosition(m);
         m.makeRotationX(Math.PI / 2);
         const m2 = new THREE.Matrix4();
-        m2.makeRotationY(Math.PI * 2 / 12 * (-position * 10 - 5));
+        m2.makeRotationY(Math.PI * 2 / 12 * (-position * 10 + 5));
         m.multiply(m2);
         m.setPosition(v);
         this.knobs.setMatrixAt(i, m);
@@ -905,7 +907,7 @@ class Panel extends THREE.Object3D {
         this.knobs = new instancedObject_1.InstancedObject(gltf.scene, 50);
         this.add(this.knobs);
         for (let row = 0; row < 2; ++row) {
-            const y = 0.2 * row - 0.12;
+            const y = -0.2 * row + 0.12;
             for (let column = 0; column < 9; ++column) {
                 const x = 0.2 * column - 0.8;
                 const m = new THREE.Matrix4();

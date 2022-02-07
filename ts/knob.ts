@@ -14,7 +14,7 @@ export class KnobTarget {
 
   public static fromObjectScale(object: THREE.Object3D) {
     return new KnobTarget((x) => {
-      object.scale.setLength(x * 1.73205);  // Root of three
+      object.scale.setLength(x * 1.73205 + 0.01);  // Root of three
     })
   }
 
