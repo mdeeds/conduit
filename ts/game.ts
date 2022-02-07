@@ -54,11 +54,6 @@ export class Game {
     this.stage = new Stage(this.audioCtx, this.selection, this.camera);
     this.scene.add(this.stage);
 
-    const panel = new Panel();
-    // panel.rotateX(Math.PI / 6);
-    panel.position.set(0, 2, -0.8);
-    this.scene.add(panel);
-
     // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
     // this.scene.add(light);
 

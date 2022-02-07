@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { Assets } from "./assets";
 import { InstancedObject } from "./instancedObject";
+import { KnobTarget } from "./knob";
+import { Synth } from "./synth";
 
 export class Panel extends THREE.Object3D {
 
@@ -10,7 +12,9 @@ export class Panel extends THREE.Object3D {
   private panelMesh: THREE.Mesh;
   private knobs: InstancedObject = null;
 
-  constructor() {
+  private volumeTarget: KnobTarget;
+
+  constructor(private synth: Synth) {
     super();
     this.panelGeometry = new THREE.PlaneGeometry(2, 0.5);
     this.panelMaterial = new THREE.MeshStandardMaterial({
@@ -20,6 +24,11 @@ export class Panel extends THREE.Object3D {
     this.add(this.panelMesh);
     this.setUpTexture();
     this.setUpMeshes();
+
+    this.volumeTarget = new KnobTarget((x) => {
+      this.setKnobPosition(12, x);
+    });
+    synth.getVolumeKnob().addTarget(this.volumeTarget);
   }
 
 

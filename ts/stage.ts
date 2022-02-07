@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { KnobTarget } from "./knob";
 import { Orb } from "./orb";
+import { Panel } from "./panel";
 import { Selectable, Selection, SelectionChangeCallback } from "./selection";
 import { S } from "./settings";
 import { Synth } from "./synth";
@@ -26,6 +27,11 @@ export class Stage extends THREE.Object3D {
       this.orbs.push(orb);
       this.selection.add(orb);
     }
+
+
+    const panel = new Panel(this.orbs[0].getSynth());
+    panel.position.set(0, 2, -0.8);
+    this.add(panel);
 
     const light = new THREE.SpotLight('white',
       /*intensity=*/ 2,

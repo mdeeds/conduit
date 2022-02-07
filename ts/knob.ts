@@ -1,9 +1,9 @@
 import * as THREE from "three";
 
-type ValueSetter = (x: number) => void;
+export type ValueSetter = (x: number) => void;
 
 export class KnobTarget {
-  private constructor(private set: ValueSetter) {
+  public constructor(private set: ValueSetter) {
   }
 
   public static fromAudioParam(param: AudioParam, audioCtx: AudioContext, lagS: number) {
