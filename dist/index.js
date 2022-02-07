@@ -1570,7 +1570,7 @@ class Synth {
         this.volumeGain = this.audioCtx.createGain();
         this.volumeGain.channelCount = 2;
         this.volumeGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
-        this.volumeKnob = new knob_1.Knob(0.05, 1, 1);
+        this.volumeKnob = new knob_1.Knob(0, 1, 0.25);
         this.volumeKnob.addTarget(knob_1.KnobTarget.fromAudioParam(this.volumeGain.gain, this.audioCtx, 0.05));
         this.overdriveShaper.connect(this.volumeGain);
         this.volumeGain.connect(audioCtx.destination);
