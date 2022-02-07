@@ -1,33 +1,105 @@
 import { Knob, KnobTarget } from "./knob";
 
+
+type TransferFunction = (x: number) => number;
+
+class MultiParam {
+  constructor(private params: AudioParam[]) { }
+  public cancelScheduledValues(t: number) {
+    for (const p of this.params) {
+      p.cancelScheduledValues(t);
+    }
+  }
+  public setValueAtTime(value: number, t: number) {
+    for (const p of this.params) {
+      p.setValueAtTime(value, t);
+    }
+  }
+  public linearRampToValueAtTime(value: number, t: number) {
+    for (const p of this.params) {
+      p.linearRampToValueAtTime(value, t);
+    }
+  }
+  public exponentialRampToValueAtTime(value: number, t: number) {
+    for (const p of this.params) {
+      p.exponentialRampToValueAtTime(value, t);
+    }
+  }
+}
+
 class ADSR {
   public attack = 0.05;
   public decay = 0.05;
   public sustain = 0.3;
   public release = 1;
-  constructor(private audioCtx: AudioContext, private param: AudioParam) {
+
+  private static Identity: TransferFunction = function (x: number) { return x; };
+
+  constructor(private audioCtx: AudioContext, private param: AudioParam | MultiParam,
+    private transferFunction: TransferFunction = ADSR.Identity,
+    private exponential = false) {
   }
 
-  // Returns the release time.
-  public triggerAndRelease(durationS: number): number {
+  private linearTriggerAndRelease(durationS: number): number {
     let t = this.audioCtx.currentTime;
     this.param.cancelScheduledValues(t);
     t += this.attack;
-    this.param.linearRampToValueAtTime(1.0, t);
+    this.param.linearRampToValueAtTime(
+      this.transferFunction(1.0), t);
     t += this.decay;
     const releaseTime = t;
-    this.param.linearRampToValueAtTime(this.sustain, t);
+    this.param.linearRampToValueAtTime(
+      this.transferFunction(this.sustain), t);
     t += durationS;
-    this.param.linearRampToValueAtTime(this.sustain, t);
+    this.param.linearRampToValueAtTime(
+      this.transferFunction(this.sustain), t);
     t += this.release;
-    this.param.linearRampToValueAtTime(0, t);
+    this.param.linearRampToValueAtTime(
+      this.transferFunction(0), t);
     return releaseTime;
+  }
+
+  private exponentialTriggerAndRelease(durationS: number): number {
+    let t = this.audioCtx.currentTime;
+    this.param.cancelScheduledValues(t);
+    this.param.setValueAtTime(t, this.transferFunction(0));
+    t += this.attack;
+    this.param.exponentialRampToValueAtTime(
+      this.transferFunction(1.0), t);
+    t += this.decay;
+    const releaseTime = t;
+    this.param.exponentialRampToValueAtTime(
+      this.transferFunction(this.sustain), t);
+    t += durationS;
+    this.param.exponentialRampToValueAtTime(
+      this.transferFunction(this.sustain), t);
+    t += this.release;
+    this.param.exponentialRampToValueAtTime(
+      this.transferFunction(0), t);
+    return releaseTime;
+  }
+
+  // Returns the begin sustain time.
+  public triggerAndRelease(durationS: number): number {
+    if (this.exponential) {
+      return this.exponentialTriggerAndRelease(durationS);
+    } else {
+      return this.linearTriggerAndRelease(durationS);
+    }
   }
 }
 
 export class Synth {
   private releaseDeadline = 0;
   private currentHz = 440;
+
+  // Range is -5 to 5.  Envelope times depth = octaves.
+  private filterDepth = 0.2;
+  private pitchDepth = 0.0;
+
+  // Range is 0 to 1.
+  private highPass = 1.0;
+  private lowPass = 1.0;
 
   // Frequency -> Octave -> 
   //   sawOsc -> sawGain      
@@ -61,13 +133,22 @@ export class Synth {
 
 
   private env1: ADSR;
-  private env2: ADSR;
+  private highPassEnv: ADSR;
+  private lowPassEnv: ADSR;
+  private pitchEnv: ADSR;
+  private subEnv: ADSR;
+
+  private lowPassTransfer: TransferFunction;
+  private highPassTransfer: TransferFunction;
+  private pitchTransfer: TransferFunction;
+  private subTransfer: TransferFunction;
 
   private overdriveShaper: WaveShaperNode;
   private volumeGain: GainNode;
 
   private volumeKnob: Knob;
   constructor(private audioCtx: AudioContext) {
+    this.setTransferFunctions();
 
     // Saw Oscilator
     this.sawOsc = audioCtx.createOscillator();
@@ -95,6 +176,8 @@ export class Synth {
     this.highPassFilter.gain.setValueAtTime(1, audioCtx.currentTime);
     this.highPassFilter.frequency.setValueAtTime(250, audioCtx.currentTime);
     this.highPassFilter.type = 'highpass';
+    this.highPassEnv = new ADSR(
+      audioCtx, this.highPassFilter.frequency, this.highPassTransfer, true);
     this.sawGain.connect(this.highPassFilter);
     this.squareGain.connect(this.highPassFilter);
 
@@ -104,6 +187,8 @@ export class Synth {
     this.lowPassFilter.gain.setValueAtTime(1, audioCtx.currentTime);
     this.lowPassFilter.frequency.setValueAtTime(2000, audioCtx.currentTime);
     this.lowPassFilter.type = 'lowpass';
+    this.lowPassEnv = new ADSR(
+      audioCtx, this.lowPassFilter.frequency, this.lowPassTransfer, true);
     this.highPassFilter.connect(this.lowPassFilter);
 
     // Sine Oscilator
@@ -135,6 +220,16 @@ export class Synth {
     this.sineGain.connect(this.sourceGain);
     this.subGain.connect(this.sourceGain);
 
+    // Env2
+    const allFrequencies = new MultiParam(
+      [this.squareOsc.frequency, this.sawOsc.frequency,
+      this.lowPassFilter.frequency, this.highPassFilter.frequency,
+      this.sineOsc.frequency]);
+    this.pitchEnv = new ADSR(
+      audioCtx, allFrequencies, this.pitchTransfer, true);
+    this.subEnv = new ADSR(
+      audioCtx, this.subOsc.frequency, this.subTransfer, true);
+
     // Overdrive
     this.overdriveShaper = audioCtx.createWaveShaper();
     this.overdriveShaper.channelCount = 1;
@@ -165,17 +260,16 @@ export class Synth {
 
   public setNote(note: number) {
     const hz = this.midiNumberToHz(note) * this.octave;
-    const now = this.audioCtx.currentTime;
-    this.sineOsc.frequency.setValueAtTime(hz, now);
-    this.sawOsc.frequency.setValueAtTime(hz, now);
-    this.squareOsc.frequency.setValueAtTime(hz, now);
-    this.subOsc.frequency.setValueAtTime(hz / 2, now);
     this.currentHz = hz;
   }
 
   public pluck() {
     if (this.audioCtx.currentTime > this.releaseDeadline) {
       this.releaseDeadline = this.env1.triggerAndRelease(0.5);
+      this.subEnv.triggerAndRelease(0.5);
+      this.pitchEnv.triggerAndRelease(0.5);
+      this.highPassEnv.triggerAndRelease(0.5);
+      this.lowPassEnv.triggerAndRelease(0.5);
     }
   }
 
@@ -191,6 +285,28 @@ export class Synth {
       const x = Math.abs(j / (bucketCount / 2));
       curve[i] = sign * Math.pow(x, power);
     }
-    console.log('Overdrive shaped.');
+  }
+
+  private setTransferFunctions() {
+    this.lowPassTransfer = (x: number): number => {
+      const octave = (x * 10 - 5) * this.filterDepth + this.lowPass;
+      const f = Math.pow(2, octave) * this.currentHz;
+      return f;
+    };
+    this.highPassTransfer = (x: number): number => {
+      const octave = (x * 10 - 5) * this.filterDepth + this.highPass;
+      const f = Math.pow(2, octave) * this.currentHz;
+      return f;
+    };
+    this.pitchTransfer = (x: number): number => {
+      const octave = (x * 10 - 5) * this.pitchDepth;
+      const f = Math.pow(2, octave) * this.currentHz;
+      return f;
+    };
+    this.subTransfer = (x: number): number => {
+      const octave = (x * 10 - 5) * this.pitchDepth - 1;
+      const f = Math.pow(2, octave) * this.currentHz;
+      return f;
+    };
   }
 }

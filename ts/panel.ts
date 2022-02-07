@@ -13,7 +13,9 @@ export class Panel extends THREE.Object3D {
   constructor() {
     super();
     this.panelGeometry = new THREE.PlaneGeometry(2, 0.5);
-    this.panelMaterial = new THREE.MeshStandardMaterial({ color: 'green' });
+    this.panelMaterial = new THREE.MeshStandardMaterial({
+      emissive: 0.5
+    });
     this.panelMesh = new THREE.Mesh(this.panelGeometry, this.panelMaterial);
     this.add(this.panelMesh);
     this.setUpTexture();

@@ -277,13 +277,13 @@ class Game {
         this.camera = new THREE.PerspectiveCamera(75, 800 / 360, /*near=*/ 0.1, 
         /*far=*/ 100);
         this.camera.position.set(0, 1.6, 0);
-        this.camera.lookAt(0, 0.15, -2);
+        this.camera.lookAt(0, 1.6, -2);
         this.scene.add(this.camera);
-        this.stage = new stage_1.Stage(this.audioCtx, this.selection);
+        this.stage = new stage_1.Stage(this.audioCtx, this.selection, this.camera);
         this.scene.add(this.stage);
         const panel = new panel_1.Panel();
-        panel.rotateX(-Math.PI / 6);
-        panel.position.set(0, 0.5, -0.6);
+        // panel.rotateX(Math.PI / 6);
+        panel.position.set(0, 2, -0.8);
         this.scene.add(panel);
         // const light = new THREE.HemisphereLight(0xffffff, 0x554433, 1.0);
         // this.scene.add(light);
@@ -458,7 +458,7 @@ class Hand {
         const index = (side == 'left') ? 0 : 1;
         this.grip = renderer.xr.getControllerGrip(index);
         // this.grip = new THREE.Group();
-        this.grip.position.set((index - 0.5), 0.3, -1.4);
+        this.grip.position.set((index - 0.5) * 0.1, 0.1, -0.1);
         console.log(`Grip name: ${this.grip.name}`);
         const pads = window.navigator.getGamepads();
         if (pads.length > index) {
@@ -854,7 +854,9 @@ class Panel extends THREE.Object3D {
     constructor() {
         super();
         this.panelGeometry = new THREE.PlaneGeometry(2, 0.5);
-        this.panelMaterial = new THREE.MeshStandardMaterial({ color: 'green' });
+        this.panelMaterial = new THREE.MeshStandardMaterial({
+            emissive: 0.5
+        });
         this.panelMesh = new THREE.Mesh(this.panelGeometry, this.panelMaterial);
         this.add(this.panelMesh);
         this.setUpTexture();
@@ -1286,11 +1288,13 @@ const synth_1 = __webpack_require__(671);
 class Stage extends THREE.Object3D {
     audioCtx;
     selection;
+    camera;
     orbs = [];
-    constructor(audioCtx, selection) {
+    constructor(audioCtx, selection, camera) {
         super();
         this.audioCtx = audioCtx;
         this.selection = selection;
+        this.camera = camera;
         let r = 2;
         {
             const light = new THREE.HemisphereLight('#8bf', '#951', 0.5);
@@ -1319,10 +1323,11 @@ class Stage extends THREE.Object3D {
         light.shadow.camera.near = 1;
         light.shadow.camera.far = 10;
         light.shadow.focus = 1;
+        light.position.copy(this.camera.position);
         this.add(light);
         selection.addChangeListener((previous, current) => {
             if (current) {
-                light.position.copy(current.getObject3D().position);
+                light.position.copy(this.camera.position);
                 light.position.y = 5;
                 light.target = current.getObject3D();
                 light.visible = true;
@@ -1354,37 +1359,97 @@ exports.Stage = Stage;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Synth = void 0;
 const knob_1 = __webpack_require__(0);
+class MultiParam {
+    params;
+    constructor(params) {
+        this.params = params;
+    }
+    cancelScheduledValues(t) {
+        for (const p of this.params) {
+            p.cancelScheduledValues(t);
+        }
+    }
+    setValueAtTime(value, t) {
+        for (const p of this.params) {
+            p.setValueAtTime(value, t);
+        }
+    }
+    linearRampToValueAtTime(value, t) {
+        for (const p of this.params) {
+            p.linearRampToValueAtTime(value, t);
+        }
+    }
+    exponentialRampToValueAtTime(value, t) {
+        for (const p of this.params) {
+            p.exponentialRampToValueAtTime(value, t);
+        }
+    }
+}
 class ADSR {
     audioCtx;
     param;
+    transferFunction;
+    exponential;
     attack = 0.05;
     decay = 0.05;
     sustain = 0.3;
     release = 1;
-    constructor(audioCtx, param) {
+    static Identity = function (x) { return x; };
+    constructor(audioCtx, param, transferFunction = ADSR.Identity, exponential = false) {
         this.audioCtx = audioCtx;
         this.param = param;
+        this.transferFunction = transferFunction;
+        this.exponential = exponential;
     }
-    // Returns the release time.
-    triggerAndRelease(durationS) {
+    linearTriggerAndRelease(durationS) {
         let t = this.audioCtx.currentTime;
         this.param.cancelScheduledValues(t);
         t += this.attack;
-        this.param.linearRampToValueAtTime(1.0, t);
+        this.param.linearRampToValueAtTime(this.transferFunction(1.0), t);
         t += this.decay;
         const releaseTime = t;
-        this.param.linearRampToValueAtTime(this.sustain, t);
+        this.param.linearRampToValueAtTime(this.transferFunction(this.sustain), t);
         t += durationS;
-        this.param.linearRampToValueAtTime(this.sustain, t);
+        this.param.linearRampToValueAtTime(this.transferFunction(this.sustain), t);
         t += this.release;
-        this.param.linearRampToValueAtTime(0, t);
+        this.param.linearRampToValueAtTime(this.transferFunction(0), t);
         return releaseTime;
+    }
+    exponentialTriggerAndRelease(durationS) {
+        let t = this.audioCtx.currentTime;
+        this.param.cancelScheduledValues(t);
+        this.param.setValueAtTime(t, this.transferFunction(0));
+        t += this.attack;
+        this.param.exponentialRampToValueAtTime(this.transferFunction(1.0), t);
+        t += this.decay;
+        const releaseTime = t;
+        this.param.exponentialRampToValueAtTime(this.transferFunction(this.sustain), t);
+        t += durationS;
+        this.param.exponentialRampToValueAtTime(this.transferFunction(this.sustain), t);
+        t += this.release;
+        this.param.exponentialRampToValueAtTime(this.transferFunction(0), t);
+        return releaseTime;
+    }
+    // Returns the begin sustain time.
+    triggerAndRelease(durationS) {
+        if (this.exponential) {
+            return this.exponentialTriggerAndRelease(durationS);
+        }
+        else {
+            return this.linearTriggerAndRelease(durationS);
+        }
     }
 }
 class Synth {
     audioCtx;
     releaseDeadline = 0;
     currentHz = 440;
+    // Range is -5 to 5.  Envelope times depth = octaves.
+    filterDepth = 0.2;
+    pitchDepth = 0.0;
+    // Range is 0 to 1.
+    highPass = 1.0;
+    lowPass = 1.0;
     // Frequency -> Octave -> 
     //   sawOsc -> sawGain      
     //   squareOsc -> squareGain
@@ -1412,12 +1477,20 @@ class Synth {
     lowPassFilter;
     highPassFilter;
     env1;
-    env2;
+    highPassEnv;
+    lowPassEnv;
+    pitchEnv;
+    subEnv;
+    lowPassTransfer;
+    highPassTransfer;
+    pitchTransfer;
+    subTransfer;
     overdriveShaper;
     volumeGain;
     volumeKnob;
     constructor(audioCtx) {
         this.audioCtx = audioCtx;
+        this.setTransferFunctions();
         // Saw Oscilator
         this.sawOsc = audioCtx.createOscillator();
         this.sawOsc.channelCount = 1;
@@ -1442,6 +1515,7 @@ class Synth {
         this.highPassFilter.gain.setValueAtTime(1, audioCtx.currentTime);
         this.highPassFilter.frequency.setValueAtTime(250, audioCtx.currentTime);
         this.highPassFilter.type = 'highpass';
+        this.highPassEnv = new ADSR(audioCtx, this.highPassFilter.frequency, this.highPassTransfer, true);
         this.sawGain.connect(this.highPassFilter);
         this.squareGain.connect(this.highPassFilter);
         // Low Pass Filter
@@ -1450,6 +1524,7 @@ class Synth {
         this.lowPassFilter.gain.setValueAtTime(1, audioCtx.currentTime);
         this.lowPassFilter.frequency.setValueAtTime(2000, audioCtx.currentTime);
         this.lowPassFilter.type = 'lowpass';
+        this.lowPassEnv = new ADSR(audioCtx, this.lowPassFilter.frequency, this.lowPassTransfer, true);
         this.highPassFilter.connect(this.lowPassFilter);
         // Sine Oscilator
         this.sineOsc = audioCtx.createOscillator();
@@ -1477,6 +1552,12 @@ class Synth {
         this.lowPassFilter.connect(this.sourceGain);
         this.sineGain.connect(this.sourceGain);
         this.subGain.connect(this.sourceGain);
+        // Env2
+        const allFrequencies = new MultiParam([this.squareOsc.frequency, this.sawOsc.frequency,
+            this.lowPassFilter.frequency, this.highPassFilter.frequency,
+            this.sineOsc.frequency]);
+        this.pitchEnv = new ADSR(audioCtx, allFrequencies, this.pitchTransfer, true);
+        this.subEnv = new ADSR(audioCtx, this.subOsc.frequency, this.subTransfer, true);
         // Overdrive
         this.overdriveShaper = audioCtx.createWaveShaper();
         this.overdriveShaper.channelCount = 1;
@@ -1502,16 +1583,15 @@ class Synth {
     }
     setNote(note) {
         const hz = this.midiNumberToHz(note) * this.octave;
-        const now = this.audioCtx.currentTime;
-        this.sineOsc.frequency.setValueAtTime(hz, now);
-        this.sawOsc.frequency.setValueAtTime(hz, now);
-        this.squareOsc.frequency.setValueAtTime(hz, now);
-        this.subOsc.frequency.setValueAtTime(hz / 2, now);
         this.currentHz = hz;
     }
     pluck() {
         if (this.audioCtx.currentTime > this.releaseDeadline) {
             this.releaseDeadline = this.env1.triggerAndRelease(0.5);
+            this.subEnv.triggerAndRelease(0.5);
+            this.pitchEnv.triggerAndRelease(0.5);
+            this.highPassEnv.triggerAndRelease(0.5);
+            this.lowPassEnv.triggerAndRelease(0.5);
         }
     }
     getVolumeKnob() {
@@ -1525,7 +1605,28 @@ class Synth {
             const x = Math.abs(j / (bucketCount / 2));
             curve[i] = sign * Math.pow(x, power);
         }
-        console.log('Overdrive shaped.');
+    }
+    setTransferFunctions() {
+        this.lowPassTransfer = (x) => {
+            const octave = (x * 10 - 5) * this.filterDepth + this.lowPass;
+            const f = Math.pow(2, octave) * this.currentHz;
+            return f;
+        };
+        this.highPassTransfer = (x) => {
+            const octave = (x * 10 - 5) * this.filterDepth + this.highPass;
+            const f = Math.pow(2, octave) * this.currentHz;
+            return f;
+        };
+        this.pitchTransfer = (x) => {
+            const octave = (x * 10 - 5) * this.pitchDepth;
+            const f = Math.pow(2, octave) * this.currentHz;
+            return f;
+        };
+        this.subTransfer = (x) => {
+            const octave = (x * 10 - 5) * this.pitchDepth - 1;
+            const f = Math.pow(2, octave) * this.currentHz;
+            return f;
+        };
     }
 }
 exports.Synth = Synth;

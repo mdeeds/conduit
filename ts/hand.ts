@@ -22,7 +22,7 @@ export class Hand {
     const index = (side == 'left') ? 0 : 1;
     this.grip = renderer.xr.getControllerGrip(index);
     // this.grip = new THREE.Group();
-    this.grip.position.set((index - 0.5), 0.3, -1.4);
+    this.grip.position.set((index - 0.5) * 0.1, 0.1, -0.1);
     console.log(`Grip name: ${this.grip.name}`);
     const pads = window.navigator.getGamepads();
     if (pads.length > index) {

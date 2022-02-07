@@ -7,7 +7,8 @@ import { Synth } from "./synth";
 
 export class Stage extends THREE.Object3D {
   private orbs: Orb[] = [];
-  constructor(private audioCtx: AudioContext, private selection: Selection) {
+  constructor(private audioCtx: AudioContext, private selection: Selection,
+    private camera: THREE.Camera) {
     super();
 
     let r = 2;
@@ -40,11 +41,12 @@ export class Stage extends THREE.Object3D {
     light.shadow.camera.near = 1;
     light.shadow.camera.far = 10;
     light.shadow.focus = 1;
+    light.position.copy(this.camera.position)
     this.add(light);
 
     selection.addChangeListener((previous: Selectable, current: Selectable) => {
       if (current) {
-        light.position.copy(current.getObject3D().position);
+        light.position.copy(this.camera.position);
         light.position.y = 5;
         light.target = current.getObject3D();
         light.visible = true;
