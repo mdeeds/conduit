@@ -26,7 +26,7 @@ export class Panel extends THREE.Object3D {
     this.setUpMeshes();
 
     this.volumeTarget = new KnobTarget((x) => {
-      this.setKnobPosition(12, x);
+      this.setKnobPosition(this.knobs.getInstanceCount() - 1, x);
     });
     synth.getVolumeKnob().addTarget(this.volumeTarget);
   }
