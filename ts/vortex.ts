@@ -6,8 +6,7 @@ class Particle {
     readonly velocity: THREE.Vector3,
     readonly color: THREE.Vector4,
     readonly currentSize: number,
-    readonly rotation: number,
-    public lifeS: number,
+    public timeS: number,
   ) { }
 }
 
@@ -80,6 +79,7 @@ void main() {
     this.UpdateGeometry();
   }
 
+  private static kLifeS = 10;
   AddParticle(position: THREE.Vector3, velocity: THREE.Vector3,
     color: THREE.Color) {
     if (!position.manhattanLength() || !velocity.manhattanLength()) {
@@ -92,8 +92,7 @@ void main() {
     const colorVector = new THREE.Vector4(color.r, color.g, color.b, 0.5);
     this.particles.push(new Particle(
       p, v, colorVector,
-      Math.random() * 0.05,
-      Math.random() * 2 * Math.PI, 10));
+      Math.random() * 0.05, 0));
   }
 
   private UpdateGeometry() {
@@ -106,7 +105,7 @@ void main() {
       positions.push(p.position.x, p.position.y, p.position.z);
       colors.push(p.color.x, p.color.y, p.color.z, p.color.w);
       sizes.push(p.currentSize);
-      times.push(10 - p.lifeS);
+      times.push(p.timeS);
     }
 
     this.geometry.setAttribute(
@@ -129,12 +128,12 @@ void main() {
       this.v.copy(p.velocity);
       this.v.multiplyScalar(deltaS);
       p.position.add(this.v);
-      p.lifeS -= deltaS;
+      p.timeS += deltaS;
     }
 
     let numDeleted = 0;
     for (let i = 0; i < this.particles.length; ++i) {
-      if (this.particles[i].lifeS < 0) {
+      if (this.particles[i].timeS > Vortex.kLifeS) {
         numDeleted++;
       } else {
         this.particles[i - numDeleted] = this.particles[i];

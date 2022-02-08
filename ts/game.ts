@@ -194,7 +194,7 @@ export class Game {
   private trigger(synth: Synth) {
     synth.pluck();
     this.vortexSystem.AddParticle(
-      new THREE.Vector3(0.5, 1, 0),
+      new THREE.Vector3(0.5, 0, 0),
       new THREE.Vector3(0, 0, -0.2), Game.triggerColor);
   }
 

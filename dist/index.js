@@ -223,6 +223,8 @@ const particleSystem_1 = __webpack_require__(564);
 const stage_1 = __webpack_require__(976);
 const selection_1 = __webpack_require__(497);
 const orb_1 = __webpack_require__(115);
+const vortex_1 = __webpack_require__(526);
+const settings_1 = __webpack_require__(451);
 class Game {
     audioCtx;
     scene;
@@ -230,6 +232,7 @@ class Game {
     clock;
     camera;
     particleSystem;
+    vortexSystem;
     leftHand;
     rightHand;
     stage;
@@ -240,8 +243,9 @@ class Game {
         document.querySelector('body').addEventListener('keydown', (ev) => {
             switch (ev.code) {
                 case 'Space':
-                    if (this.currentSynth)
-                        this.currentSynth.pluck();
+                    if (this.currentSynth) {
+                        this.trigger(this.currentSynth);
+                    }
                     break;
                 case 'ArrowUp':
                     if (this.currentSynth)
@@ -285,6 +289,9 @@ class Game {
         this.setUpRenderer();
         this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.selection, this.camera);
         this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.selection, this.camera);
+        this.vortexSystem = new vortex_1.Vortex();
+        this.vortexSystem.position.set(0, 1.5, -0.5);
+        this.scene.add(this.vortexSystem);
         this.setUpAnimation();
         this.setUpMouseBar();
         this.particleSystem = new particleSystem_1.ParticleSystem(this.scene);
@@ -364,6 +371,7 @@ class Game {
             this.currentSynth = selected.getSynth();
         }
         this.particleSystem.step(this.camera, deltaS);
+        this.vortexSystem.step(this.camera, deltaS);
         this.stage.update(this.elapsedS);
         this.renderer.render(this.scene, this.camera);
         this.handleHand(this.leftHand, deltaS);
@@ -382,10 +390,38 @@ class Game {
         this.ray.direction.set(coords.x, coords.y, 0.5)
             .unproject(this.camera).sub(this.ray.origin).normalize();
     }
+    static triggerColor = new THREE.Color('white');
+    trigger(synth) {
+        synth.pluck();
+        this.vortexSystem.AddParticle(new THREE.Vector3(0.5, 0, 0), new THREE.Vector3(0, 0, -0.2), Game.triggerColor);
+    }
+    static pluckThreshold = settings_1.S.float('p');
+    static volumeRate = settings_1.S.float('v');
+    handleMotion(motion, state) {
+        const selected = this.selection.getSelected();
+        if (selected != null && selected instanceof orb_1.Orb) {
+            const synth = selected.getSynth();
+            switch (state) {
+                case 'pluck':
+                    if (motion.acceleration.y > Game.pluckThreshold &&
+                        motion.velocity.y < 0) {
+                        this.trigger(synth);
+                    }
+                    break;
+                case 'softer':
+                case 'louder':
+                    const magnitude = motion.velocity.length() *
+                        ((state === 'softer') ? -Game.volumeRate : Game.volumeRate);
+                    synth.getVolumeKnob().change(magnitude);
+                    break;
+            }
+        }
+    }
     v1 = new THREE.Vector3();
     v2 = new THREE.Vector3();
     handleHand(hand, deltaS) {
         const motion = hand.updateMotion(this.elapsedS, deltaS);
+        this.handleMotion(motion, hand.getState());
         const state = hand.getState();
         if (motion.velocity.length() > Math.random()) {
             this.particleSystem.AddParticle(motion.position, motion.velocity, this.getColorForState(state));
@@ -431,7 +467,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Hand = void 0;
 const THREE = __importStar(__webpack_require__(578));
-const orb_1 = __webpack_require__(115);
 const settings_1 = __webpack_require__(451);
 const tracker_1 = __webpack_require__(163);
 class Hand {
@@ -443,8 +478,6 @@ class Hand {
     grip;
     tracker = new tracker_1.Tracker();
     state;
-    pluckThreshold = settings_1.S.float('p');
-    volumeRate = settings_1.S.float('v');
     constructor(side, renderer, scene, selection, camera) {
         this.side = side;
         this.scene = scene;
@@ -512,24 +545,6 @@ class Hand {
             this.state = 'softer';
         }
         const motion = this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
-        const selected = this.selection.getSelected();
-        if (selected != null && selected instanceof orb_1.Orb) {
-            const synth = selected.getSynth();
-            switch (this.state) {
-                case 'pluck':
-                    if (motion.acceleration.y > this.pluckThreshold &&
-                        motion.velocity.y < 0) {
-                        synth.pluck();
-                    }
-                    break;
-                case 'softer':
-                case 'louder':
-                    const magnitude = motion.velocity.length() *
-                        ((this.state === 'softer') ? -this.volumeRate : this.volumeRate);
-                    synth.getVolumeKnob().change(magnitude);
-                    break;
-            }
-        }
         return motion;
     }
 }
@@ -970,26 +985,25 @@ class Particle {
 }
 class ParticleSystem {
     static kVS = `
-uniform float pointMultiplier;
+// uniform float pointMultiplier;
 attribute float size;
-attribute float angle;
-attribute vec4 colour;
 varying vec4 vColor;
-varying vec2 vAngle;
 void main() {
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
-  gl_PointSize = size * pointMultiplier / gl_Position.w;
-  vAngle = vec2(cos(angle), sin(angle));
+  // gl_PointSize = size * pointMultiplier / gl_Position.w;
+  gl_PointSize = 800.0 * size / gl_Position.w;
+  
   vColor = color;
 }`;
     static kFS = `
-uniform sampler2D diffuseTexture;
+// uniform sampler2D diffuseTexture;
 varying vec4 vColor;
-varying vec2 vAngle;
 void main() {
-  vec2 coords = (gl_PointCoord - 0.5) * mat2(vAngle.x, vAngle.y, -vAngle.y, vAngle.x) + 0.5;
-  gl_FragColor = texture2D(diffuseTexture, coords) * vColor;
+  vec2 coords = gl_PointCoord;
+  // gl_FragColor = texture2D(diffuseTexture, coords) * vColor;
+  float intensity = 2.0 * (0.5 - length(gl_PointCoord - 0.5));
+  gl_FragColor = vColor * intensity;
 }`;
     material;
     particles = [];
@@ -1004,6 +1018,7 @@ void main() {
                 value: window.innerHeight / (2.0 * Math.tan(0.5 * 60.0 * Math.PI / 180.0))
             }
         };
+        console.log(`Multiplier: ${uniforms.pointMultiplier.value}`);
         this.material = new THREE.ShaderMaterial({
             uniforms: uniforms,
             vertexShader: ParticleSystem.kVS,
@@ -1016,10 +1031,10 @@ void main() {
         });
         this.geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
         this.geometry.setAttribute('size', new THREE.Float32BufferAttribute([], 1));
-        this.geometry.setAttribute('colour', new THREE.Float32BufferAttribute([], 4));
-        this.geometry.setAttribute('angle', new THREE.Float32BufferAttribute([], 1));
         this.points = new THREE.Points(this.geometry, this.material);
         scene.add(this.points);
+        this.geometry.boundingSphere =
+            new THREE.Sphere(new THREE.Vector3(), 50);
         this.UpdateGeometry();
     }
     AddParticle(position, velocity, color) {
@@ -1037,22 +1052,17 @@ void main() {
         const positions = [];
         const sizes = [];
         const colors = [];
-        const angles = [];
         for (let p of this.particles) {
             positions.push(p.position.x, p.position.y, p.position.z);
             colors.push(p.color.x, p.color.y, p.color.z, p.color.w);
             sizes.push(p.currentSize);
-            angles.push(p.rotation);
         }
         this.geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         this.geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
         this.geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
-        this.geometry.setAttribute('angle', new THREE.Float32BufferAttribute(angles, 1));
         this.geometry.attributes.position.needsUpdate = true;
         this.geometry.attributes.size.needsUpdate = true;
         this.geometry.attributes.color.needsUpdate = true;
-        this.geometry.attributes.angle.needsUpdate = true;
-        this.geometry.computeBoundingSphere();
     }
     v = new THREE.Vector3();
     UpdateParticles(camera, deltaS) {
@@ -1714,6 +1724,172 @@ class Tracker {
 }
 exports.Tracker = Tracker;
 //# sourceMappingURL=tracker.js.map
+
+/***/ }),
+
+/***/ 526:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Vortex = void 0;
+const THREE = __importStar(__webpack_require__(578));
+class Particle {
+    position;
+    velocity;
+    color;
+    currentSize;
+    timeS;
+    constructor(position, velocity, color, currentSize, timeS) {
+        this.position = position;
+        this.velocity = velocity;
+        this.color = color;
+        this.currentSize = currentSize;
+        this.timeS = timeS;
+    }
+}
+class Vortex extends THREE.Object3D {
+    static kVS = `
+uniform float bpm;
+
+attribute float size;
+attribute float time;
+varying vec4 vColor;
+void main() {
+  float r = position.x;
+  float theta = position.y + time * 6.28 * bpm / 60.0 / 4.0;
+  float z = position.z;
+  float x = r * cos(theta);
+  float y = r * sin(theta);
+  vec4 mvPosition = modelViewMatrix * vec4(x, y, z, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+  // gl_PointSize = size * pointMultiplier / gl_Position.w;
+  gl_PointSize = 800.0 * size / gl_Position.w;
+  
+  vColor = color;
+}`;
+    static kFS = `
+uniform sampler2D diffuseTexture;
+varying vec4 vColor;
+void main() {
+  vec2 coords = gl_PointCoord;
+  gl_FragColor = texture2D(diffuseTexture, coords) * vColor;
+  // float intensity = 2.0 * (0.5 - length(gl_PointCoord - 0.5));
+  // gl_FragColor = vColor * intensity;
+}`;
+    material;
+    particles = [];
+    geometry = new THREE.BufferGeometry();
+    points;
+    constructor() {
+        super();
+        const uniforms = {
+            diffuseTexture: {
+                value: new THREE.TextureLoader().load('./img/dot.png')
+            },
+            bpm: {
+                value: 120.0
+            },
+        };
+        this.material = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: Vortex.kVS,
+            fragmentShader: Vortex.kFS,
+            blending: THREE.AdditiveBlending,
+            depthTest: true,
+            depthWrite: false,
+            transparent: true,
+            vertexColors: true
+        });
+        this.geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+        this.geometry.setAttribute('size', new THREE.Float32BufferAttribute([], 1));
+        this.points = new THREE.Points(this.geometry, this.material);
+        this.add(this.points);
+        this.geometry.boundingSphere =
+            new THREE.Sphere(new THREE.Vector3(), 50);
+        this.UpdateGeometry();
+    }
+    static kLifeS = 10;
+    AddParticle(position, velocity, color) {
+        if (!position.manhattanLength() || !velocity.manhattanLength()) {
+            return;
+        }
+        const p = new THREE.Vector3();
+        p.copy(position);
+        const v = new THREE.Vector3();
+        v.copy(velocity);
+        const colorVector = new THREE.Vector4(color.r, color.g, color.b, 0.5);
+        this.particles.push(new Particle(p, v, colorVector, Math.random() * 0.05, 0));
+    }
+    UpdateGeometry() {
+        const positions = [];
+        const sizes = [];
+        const times = [];
+        const colors = [];
+        for (let p of this.particles) {
+            positions.push(p.position.x, p.position.y, p.position.z);
+            colors.push(p.color.x, p.color.y, p.color.z, p.color.w);
+            sizes.push(p.currentSize);
+            times.push(p.timeS);
+        }
+        this.geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        this.geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+        this.geometry.setAttribute('time', new THREE.Float32BufferAttribute(times, 1));
+        this.geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
+        this.geometry.attributes.position.needsUpdate = true;
+        this.geometry.attributes.size.needsUpdate = true;
+        this.geometry.attributes.color.needsUpdate = true;
+    }
+    v = new THREE.Vector3();
+    UpdateParticles(camera, deltaS) {
+        for (const p of this.particles) {
+            this.v.copy(p.velocity);
+            this.v.multiplyScalar(deltaS);
+            p.position.add(this.v);
+            p.timeS += deltaS;
+        }
+        let numDeleted = 0;
+        for (let i = 0; i < this.particles.length; ++i) {
+            if (this.particles[i].timeS > Vortex.kLifeS) {
+                numDeleted++;
+            }
+            else {
+                this.particles[i - numDeleted] = this.particles[i];
+            }
+        }
+        this.particles.splice(this.particles.length - numDeleted);
+        // this.particles.sort((a, b) => {
+        //   const d1 = camera.position.distanceTo(a.position);
+        //   const d2 = camera.position.distanceTo(b.position);
+        //   return d2 - d1;
+        // });
+    }
+    step(camera, deltaS) {
+        this.UpdateParticles(camera, deltaS);
+        this.UpdateGeometry();
+    }
+}
+exports.Vortex = Vortex;
+//# sourceMappingURL=vortex.js.map
 
 /***/ }),
 
