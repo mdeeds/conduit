@@ -6,15 +6,13 @@ import { S } from "./settings";
 import { Motion, Tracker } from "./tracker";
 
 export type Side = 'left' | 'right';
-export type State = 'louder' | 'point' | 'softer' | 'pluck';
+export type HandState = 'louder' | 'point' | 'softer' | 'pluck';
 
 export class Hand {
   readonly gamepad: Gamepad;
   private grip: THREE.Group;
   public tracker = new Tracker();
-  private state: State;
-  private pluckThreshold = S.float('p');
-  private volumeRate = S.float('v');
+  private state: HandState;
 
   constructor(readonly side: Side, renderer: THREE.WebGLRenderer,
     private scene: THREE.Object3D, private selection: Selection,
@@ -59,7 +57,7 @@ export class Hand {
     this.scene.add(this.grip);
   }
 
-  public getState(): State { return this.state; }
+  public getState(): HandState { return this.state; }
 
   private v = new THREE.Vector3();
   private c = new THREE.Vector3();
@@ -84,26 +82,6 @@ export class Hand {
     }
     const motion = this.tracker.updateMotion(
       this.grip.position, elapsedS, deltaS);
-
-    const selected = this.selection.getSelected();
-    if (selected != null && selected instanceof Orb) {
-      const synth = selected.getSynth();
-      switch (this.state) {
-        case 'pluck':
-          if (motion.acceleration.y > this.pluckThreshold &&
-            motion.velocity.y < 0) {
-            synth.pluck();
-          }
-          break;
-        case 'softer':
-        case 'louder':
-          const magnitude = motion.velocity.length() *
-            ((this.state === 'softer') ? -this.volumeRate : this.volumeRate);
-          synth.getVolumeKnob().change(magnitude);
-
-          break;
-      }
-    }
     return motion;
   }
 }

@@ -1,8 +1,8 @@
 import * as THREE from "three";
 
-import { Hand, State } from "./hand";
+import { Hand, HandState } from "./hand";
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
-import { Tracker } from "./tracker";
+import { Motion, Tracker } from "./tracker";
 import { ParticleSystem } from "./particleSystem";
 import { Stage } from "./stage";
 import { Assets } from "./assets";
@@ -12,6 +12,7 @@ import { Synth } from "./synth";
 import { Panel } from "./panel";
 import { Orb } from "./orb";
 import { Vortex } from "./vortex";
+import { S } from "./settings";
 
 export class Game {
   private scene: THREE.Scene;
@@ -31,7 +32,9 @@ export class Game {
   constructor(private audioCtx: AudioContext) {
     document.querySelector('body').addEventListener('keydown', (ev) => {
       switch (ev.code) {
-        case 'Space': if (this.currentSynth) this.currentSynth.pluck(); break;
+        case 'Space': if (this.currentSynth) {
+          this.trigger(this.currentSynth);
+        } break;
         case 'ArrowUp': if (this.currentSynth) this.currentSynth.getVolumeKnob().change(0.1); break;
         case 'ArrowDown': if (this.currentSynth) this.currentSynth.getVolumeKnob().change(-0.1); break;
         case 'KeyW': this.camera.position.z -= 0.2; break;
@@ -117,7 +120,7 @@ export class Game {
   private pluckColor = new THREE.Color('pink');
   private fofColor = new THREE.Color('#f0f');
 
-  private getColorForState(s: State): THREE.Color {
+  private getColorForState(s: HandState): THREE.Color {
     switch (s) {
       case 'softer': return this.softerColor;
       case 'louder': return this.louderColor;
@@ -146,10 +149,7 @@ export class Game {
     } else if (deltaS > 1 / 85) {
       color = this.mediumColor;
     }
-    // this.particleSystem.AddParticle(p, v, color);
-    this.vortexSystem.AddParticle(
-      new THREE.Vector3(0.5, 1, 0),
-      new THREE.Vector3(0, 0, -0.2), color);
+    this.particleSystem.AddParticle(p, v, color);
   }
 
   private elapsedS: number = 0;
@@ -190,10 +190,43 @@ export class Game {
       .unproject(this.camera).sub(this.ray.origin).normalize();
   }
 
+  private static triggerColor = new THREE.Color('white');
+  private trigger(synth: Synth) {
+    synth.pluck();
+    this.vortexSystem.AddParticle(
+      new THREE.Vector3(0.5, 1, 0),
+      new THREE.Vector3(0, 0, -0.2), Game.triggerColor);
+  }
+
+  private static pluckThreshold = S.float('p');
+  private static volumeRate = S.float('v');
+
+  private handleMotion(motion: Motion, state: HandState) {
+    const selected = this.selection.getSelected();
+    if (selected != null && selected instanceof Orb) {
+      const synth = selected.getSynth();
+      switch (state) {
+        case 'pluck':
+          if (motion.acceleration.y > Game.pluckThreshold &&
+            motion.velocity.y < 0) {
+            this.trigger(synth);
+          }
+          break;
+        case 'softer':
+        case 'louder':
+          const magnitude = motion.velocity.length() *
+            ((state === 'softer') ? -Game.volumeRate : Game.volumeRate);
+          synth.getVolumeKnob().change(magnitude);
+          break;
+      }
+    }
+  }
+
   private v1 = new THREE.Vector3();
   private v2 = new THREE.Vector3();
   private handleHand(hand: Hand, deltaS: number) {
     const motion = hand.updateMotion(this.elapsedS, deltaS);
+    this.handleMotion(motion, hand.getState());
     const state = hand.getState();
     if (motion.velocity.length() > Math.random()) {
       this.particleSystem.AddParticle(
