@@ -11,6 +11,7 @@ import { Selection } from "./selection";
 import { Synth } from "./synth";
 import { Panel } from "./panel";
 import { Orb } from "./orb";
+import { Vortex } from "./vortex";
 
 export class Game {
   private scene: THREE.Scene;
@@ -18,6 +19,7 @@ export class Game {
   private clock: THREE.Clock;
   private camera: THREE.Camera;
   private particleSystem: ParticleSystem;
+  private vortexSystem: Vortex;
 
   private leftHand: Hand;
   private rightHand: Hand;
@@ -61,6 +63,9 @@ export class Game {
     this.leftHand = new Hand('left', this.renderer, this.scene, this.selection, this.camera);
     this.rightHand = new Hand('right', this.renderer, this.scene, this.selection, this.camera);
 
+    this.vortexSystem = new Vortex();
+    this.vortexSystem.position.set(0, 1.5, -0.5);
+    this.scene.add(this.vortexSystem);
     this.setUpAnimation();
     this.setUpMouseBar();
     this.particleSystem = new ParticleSystem(this.scene);
@@ -141,7 +146,10 @@ export class Game {
     } else if (deltaS > 1 / 85) {
       color = this.mediumColor;
     }
-    this.particleSystem.AddParticle(p, v, color);
+    // this.particleSystem.AddParticle(p, v, color);
+    this.vortexSystem.AddParticle(
+      new THREE.Vector3(0.5, 1, 0),
+      new THREE.Vector3(0, 0, -0.2), color);
   }
 
   private elapsedS: number = 0;
@@ -158,6 +166,7 @@ export class Game {
     }
 
     this.particleSystem.step(this.camera, deltaS);
+    this.vortexSystem.step(this.camera, deltaS);
     this.stage.update(this.elapsedS);
 
     this.renderer.render(this.scene, this.camera);

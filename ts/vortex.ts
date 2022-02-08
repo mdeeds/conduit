@@ -11,13 +11,20 @@ class Particle {
   ) { }
 }
 
-export class ParticleSystem {
+export class Vortex extends THREE.Object3D {
   private static kVS = `
-// uniform float pointMultiplier;
+uniform float bpm;
+
 attribute float size;
+attribute float time;
 varying vec4 vColor;
 void main() {
-  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  float r = position.x;
+  float theta = position.y + time * 6.28 * bpm / 60.0 / 4.0;
+  float z = position.z;
+  float x = r * cos(theta);
+  float y = r * sin(theta);
+  vec4 mvPosition = modelViewMatrix * vec4(x, y, z, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   // gl_PointSize = size * pointMultiplier / gl_Position.w;
   gl_PointSize = 800.0 * size / gl_Position.w;
@@ -26,13 +33,13 @@ void main() {
 }`;
 
   private static kFS = `
-// uniform sampler2D diffuseTexture;
+uniform sampler2D diffuseTexture;
 varying vec4 vColor;
 void main() {
   vec2 coords = gl_PointCoord;
-  // gl_FragColor = texture2D(diffuseTexture, coords) * vColor;
-  float intensity = 2.0 * (0.5 - length(gl_PointCoord - 0.5));
-  gl_FragColor = vColor * intensity;
+  gl_FragColor = texture2D(diffuseTexture, coords) * vColor;
+  // float intensity = 2.0 * (0.5 - length(gl_PointCoord - 0.5));
+  // gl_FragColor = vColor * intensity;
 }`;
 
   private material: THREE.ShaderMaterial;
@@ -40,22 +47,21 @@ void main() {
   private geometry = new THREE.BufferGeometry();
   private points: THREE.Points;
 
-  constructor(scene: THREE.Object3D) {
+  constructor() {
+    super();
     const uniforms = {
       diffuseTexture: {
         value: new THREE.TextureLoader().load('./img/dot.png')
       },
-      pointMultiplier: {
-        value: window.innerHeight / (2.0 * Math.tan(0.5 * 60.0 * Math.PI / 180.0))
-      }
+      bpm: {
+        value: 120.0
+      },
     };
-
-    console.log(`Multiplier: ${uniforms.pointMultiplier.value}`);
 
     this.material = new THREE.ShaderMaterial({
       uniforms: uniforms,
-      vertexShader: ParticleSystem.kVS,
-      fragmentShader: ParticleSystem.kFS,
+      vertexShader: Vortex.kVS,
+      fragmentShader: Vortex.kFS,
       blending: THREE.AdditiveBlending,
       depthTest: true,
       depthWrite: false,
@@ -67,7 +73,7 @@ void main() {
     this.geometry.setAttribute('size', new THREE.Float32BufferAttribute([], 1));
 
     this.points = new THREE.Points(this.geometry, this.material);
-    scene.add(this.points);
+    this.add(this.points);
     this.geometry.boundingSphere =
       new THREE.Sphere(new THREE.Vector3(), 50);
 
@@ -93,18 +99,22 @@ void main() {
   private UpdateGeometry() {
     const positions: number[] = [];
     const sizes: number[] = [];
+    const times: number[] = [];
     const colors: number[] = [];
 
     for (let p of this.particles) {
       positions.push(p.position.x, p.position.y, p.position.z);
       colors.push(p.color.x, p.color.y, p.color.z, p.color.w);
       sizes.push(p.currentSize);
+      times.push(10 - p.lifeS);
     }
 
     this.geometry.setAttribute(
       'position', new THREE.Float32BufferAttribute(positions, 3));
     this.geometry.setAttribute(
       'size', new THREE.Float32BufferAttribute(sizes, 1));
+    this.geometry.setAttribute(
+      'time', new THREE.Float32BufferAttribute(times, 1));
     this.geometry.setAttribute(
       'color', new THREE.Float32BufferAttribute(colors, 4));
 
