@@ -13,13 +13,14 @@ class Particle {
 export class Vortex extends THREE.Object3D {
   private static kVS = `
 uniform float bpm;
+uniform float beatsPerLoop;
 
 attribute float size;
 attribute float time;
 varying vec4 vColor;
 void main() {
   float r = position.x;
-  float theta = position.y + time * 6.28 * bpm / 60.0 / 4.0;
+  float theta = position.y + time * 6.28 * bpm / 60.0 / beatsPerLoop;
   float z = position.z;
   float x = r * cos(theta);
   float y = r * sin(theta);
@@ -46,15 +47,15 @@ void main() {
   private geometry = new THREE.BufferGeometry();
   private points: THREE.Points;
 
-  constructor() {
+  constructor(beatsPerMinute: number, beatsPerLoop: number,
+    private radius: number) {
     super();
     const uniforms = {
       diffuseTexture: {
         value: new THREE.TextureLoader().load('./img/dot.png')
       },
-      bpm: {
-        value: 120.0
-      },
+      bpm: { value: 120.0 },
+      beatsPerLoop: { value: 4 },
     };
 
     this.material = new THREE.ShaderMaterial({
@@ -80,15 +81,9 @@ void main() {
   }
 
   private static kLifeS = 10;
-  AddParticle(position: THREE.Vector3, velocity: THREE.Vector3,
-    color: THREE.Color) {
-    if (!position.manhattanLength() || !velocity.manhattanLength()) {
-      return;
-    }
-    const p = new THREE.Vector3();
-    p.copy(position);
-    const v = new THREE.Vector3();
-    v.copy(velocity);
+  AddParticle(zVelocity: number, color: THREE.Color) {
+    const p = new THREE.Vector3(this.radius, 0, 0);
+    const v = new THREE.Vector3(0, 0, zVelocity);
     const colorVector = new THREE.Vector4(color.r, color.g, color.b, 0.5);
     this.particles.push(new Particle(
       p, v, colorVector,

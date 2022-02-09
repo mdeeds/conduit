@@ -20,7 +20,9 @@ export class Game {
   private clock: THREE.Clock;
   private camera: THREE.Camera;
   private particleSystem: ParticleSystem;
-  private vortexSystem: Vortex;
+  private vortexSystem1: Vortex;
+  private vortexSystem4: Vortex;
+  private vortexSystem16: Vortex;
 
   private leftHand: Hand;
   private rightHand: Hand;
@@ -66,9 +68,16 @@ export class Game {
     this.leftHand = new Hand('left', this.renderer, this.scene, this.selection, this.camera);
     this.rightHand = new Hand('right', this.renderer, this.scene, this.selection, this.camera);
 
-    this.vortexSystem = new Vortex();
-    this.vortexSystem.position.set(0, 1.5, -0.5);
-    this.scene.add(this.vortexSystem);
+    this.vortexSystem1 = new Vortex(120, 1, 0.2);
+    this.vortexSystem1.position.set(0, 1.5, -0.5);
+    this.scene.add(this.vortexSystem1);
+    this.vortexSystem4 = new Vortex(120, 4, 0.8);
+    this.vortexSystem4.position.set(0, 1.8, -0.5);
+    this.scene.add(this.vortexSystem4);
+    this.vortexSystem16 = new Vortex(120, 16, 3.2);
+    this.vortexSystem16.position.set(0, 4.5, -0.5);
+    this.scene.add(this.vortexSystem16);
+
     this.setUpAnimation();
     this.setUpMouseBar();
     this.particleSystem = new ParticleSystem(this.scene);
@@ -166,7 +175,9 @@ export class Game {
     }
 
     this.particleSystem.step(this.camera, deltaS);
-    this.vortexSystem.step(this.camera, deltaS);
+    this.vortexSystem1.step(this.camera, deltaS);
+    this.vortexSystem4.step(this.camera, deltaS);
+    this.vortexSystem16.step(this.camera, deltaS);
     this.stage.update(this.elapsedS);
 
     this.renderer.render(this.scene, this.camera);
@@ -193,9 +204,9 @@ export class Game {
   private static triggerColor = new THREE.Color('white');
   private trigger(synth: Synth) {
     synth.pluck();
-    this.vortexSystem.AddParticle(
-      new THREE.Vector3(0.5, 0, 0),
-      new THREE.Vector3(0, 0, -0.2), Game.triggerColor);
+    this.vortexSystem1.AddParticle(-0.2, Game.triggerColor);
+    this.vortexSystem4.AddParticle(-0.2, Game.triggerColor);
+    this.vortexSystem16.AddParticle(-0.2, Game.triggerColor);
   }
 
   private static pluckThreshold = S.float('p');
