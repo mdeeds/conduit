@@ -4,6 +4,10 @@ export interface Selectable {
   select(): void;
   deselect(): void;
   getObject3D(): THREE.Object3D;
+
+  change(amount: number);
+  trigger();
+  release();
 }
 
 export type SelectionChangeCallback = (previous: Selectable, current: Selectable) => void;

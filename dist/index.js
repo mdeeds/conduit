@@ -224,7 +224,6 @@ const stage_1 = __webpack_require__(976);
 const selection_1 = __webpack_require__(497);
 const orb_1 = __webpack_require__(115);
 const vortex_1 = __webpack_require__(526);
-const settings_1 = __webpack_require__(451);
 class Game {
     audioCtx;
     scene;
@@ -232,7 +231,9 @@ class Game {
     clock;
     camera;
     particleSystem;
-    vortexSystem;
+    vortexSystem1;
+    vortexSystem4;
+    vortexSystem16;
     leftHand;
     rightHand;
     stage;
@@ -244,7 +245,7 @@ class Game {
             switch (ev.code) {
                 case 'Space':
                     if (this.currentSynth) {
-                        this.trigger(this.currentSynth);
+                        this.trigger();
                     }
                     break;
                 case 'ArrowUp':
@@ -275,6 +276,15 @@ class Game {
                     break;
             }
         });
+        document.querySelector('body').addEventListener('keyup', (ev) => {
+            switch (ev.code) {
+                case 'Space':
+                    if (this.currentSynth) {
+                        this.release();
+                    }
+                    break;
+            }
+        });
         this.renderer = new THREE.WebGLRenderer();
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, 800 / 360, /*near=*/ 0.1, 
@@ -289,9 +299,15 @@ class Game {
         this.setUpRenderer();
         this.leftHand = new hand_1.Hand('left', this.renderer, this.scene, this.selection, this.camera);
         this.rightHand = new hand_1.Hand('right', this.renderer, this.scene, this.selection, this.camera);
-        this.vortexSystem = new vortex_1.Vortex();
-        this.vortexSystem.position.set(0, 1.5, -0.5);
-        this.scene.add(this.vortexSystem);
+        this.vortexSystem1 = new vortex_1.Vortex(120, 1, 0.2);
+        this.vortexSystem1.position.set(0, 1.5, -0.5);
+        this.scene.add(this.vortexSystem1);
+        this.vortexSystem4 = new vortex_1.Vortex(120, 4, 0.8);
+        this.vortexSystem4.position.set(0, 1.8, -0.5);
+        this.scene.add(this.vortexSystem4);
+        this.vortexSystem16 = new vortex_1.Vortex(120, 16, 3.2);
+        this.vortexSystem16.position.set(0, 4.5, -0.5);
+        this.scene.add(this.vortexSystem16);
         this.setUpAnimation();
         this.setUpMouseBar();
         this.particleSystem = new particleSystem_1.ParticleSystem(this.scene);
@@ -368,10 +384,15 @@ class Game {
         }
         const selected = this.selection.getSelected();
         if (selected instanceof orb_1.Orb) {
+            if (this.currentSynth != selected.getSynth() && this.currentSynth) {
+                this.currentSynth.release();
+            }
             this.currentSynth = selected.getSynth();
         }
         this.particleSystem.step(this.camera, deltaS);
-        this.vortexSystem.step(this.camera, deltaS);
+        this.vortexSystem1.step(this.camera, deltaS);
+        this.vortexSystem4.step(this.camera, deltaS);
+        this.vortexSystem16.step(this.camera, deltaS);
         this.stage.update(this.elapsedS);
         this.renderer.render(this.scene, this.camera);
         this.handleHand(this.leftHand, deltaS);
@@ -391,37 +412,22 @@ class Game {
             .unproject(this.camera).sub(this.ray.origin).normalize();
     }
     static triggerColor = new THREE.Color('white');
-    trigger(synth) {
-        synth.pluck();
-        this.vortexSystem.AddParticle(new THREE.Vector3(0.5, 0, 0), new THREE.Vector3(0, 0, -0.2), Game.triggerColor);
+    trigger() {
+        this.currentSynth.trigger();
+        // this.vortexSystem1.AddParticle(-0.2, Game.triggerColor);
+        // this.vortexSystem4.AddParticle(-0.2, Game.triggerColor);
+        // this.vortexSystem16.AddParticle(-0.2, Game.triggerColor);
     }
-    static pluckThreshold = settings_1.S.float('p');
-    static volumeRate = settings_1.S.float('v');
-    handleMotion(motion, state) {
-        const selected = this.selection.getSelected();
-        if (selected != null && selected instanceof orb_1.Orb) {
-            const synth = selected.getSynth();
-            switch (state) {
-                case 'pluck':
-                    if (motion.acceleration.y > Game.pluckThreshold &&
-                        motion.velocity.y < 0) {
-                        this.trigger(synth);
-                    }
-                    break;
-                case 'softer':
-                case 'louder':
-                    const magnitude = motion.velocity.length() *
-                        ((state === 'softer') ? -Game.volumeRate : Game.volumeRate);
-                    synth.getVolumeKnob().change(magnitude);
-                    break;
-            }
-        }
+    release() {
+        this.currentSynth.release();
+        // this.vortexSystem1.AddParticle(-0.2, Game.triggerColor);
+        // this.vortexSystem4.AddParticle(-0.2, Game.triggerColor);
+        // this.vortexSystem16.AddParticle(-0.2, Game.triggerColor);
     }
     v1 = new THREE.Vector3();
     v2 = new THREE.Vector3();
     handleHand(hand, deltaS) {
         const motion = hand.updateMotion(this.elapsedS, deltaS);
-        this.handleMotion(motion, hand.getState());
         const state = hand.getState();
         if (motion.velocity.length() > Math.random()) {
             this.particleSystem.AddParticle(motion.position, motion.velocity, this.getColorForState(state));
@@ -522,7 +528,33 @@ class Hand {
     getState() { return this.state; }
     v = new THREE.Vector3();
     c = new THREE.Vector3();
+    static pluckThreshold = settings_1.S.float('p');
+    static volumeRate = settings_1.S.float('v');
+    previousState = null;
+    handleMotion(motion, state) {
+        const selected = this.selection.getSelected();
+        if (selected != null) {
+            if (this.previousState == 'pluck' && this.previousState != state) {
+                selected.release();
+            }
+            switch (state) {
+                case 'pluck':
+                    if (this.previousState != state) {
+                        selected.trigger();
+                    }
+                    break;
+                case 'softer':
+                case 'louder':
+                    const magnitude = motion.velocity.length() *
+                        ((state === 'softer') ? -Hand.volumeRate : Hand.volumeRate);
+                    selected.change(magnitude);
+                    break;
+            }
+        }
+        this.previousState = state;
+    }
     updateMotion(elapsedS, deltaS) {
+        const motion = this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
         this.grip.updateMatrix();
         const xx = this.grip.matrix.elements[0];
         const xy = this.grip.matrix.elements[1];
@@ -534,8 +566,12 @@ class Hand {
             if (this.v.length() > settings_1.S.float('pr')) {
                 this.state = 'point';
             }
-            else {
+            else if (motion.acceleration.y > Hand.pluckThreshold &&
+                motion.velocity.y < 0) {
                 this.state = 'pluck';
+            }
+            else if (Math.abs(motion.acceleration.x) > Hand.pluckThreshold) {
+                this.state = 'cut';
             }
         }
         else if (xy < 0) {
@@ -544,7 +580,7 @@ class Hand {
         else {
             this.state = 'softer';
         }
-        const motion = this.tracker.updateMotion(this.grip.position, elapsedS, deltaS);
+        this.handleMotion(motion, this.state);
         return motion;
     }
 }
@@ -761,6 +797,15 @@ class Orb extends THREE.Object3D {
     }
     getObject3D() {
         return this;
+    }
+    trigger() {
+        this.synth.trigger();
+    }
+    release() {
+        this.synth.release();
+    }
+    change(relativeDelta) {
+        this.synth.getVolumeKnob().change(relativeDelta);
     }
     getBlobMaterial(color) {
         // Vertex shader
@@ -1409,10 +1454,10 @@ class ADSR {
     param;
     transferFunction;
     exponential;
-    attack = 0.05;
-    decay = 0.05;
-    sustain = 0.3;
-    release = 1;
+    attackS = 0.05;
+    decayS = 0.05;
+    sustainS = 0.3;
+    releaseS = 1;
     static Identity = function (x) { return x; };
     constructor(audioCtx, param, transferFunction = ADSR.Identity, exponential = false) {
         this.audioCtx = audioCtx;
@@ -1420,42 +1465,53 @@ class ADSR {
         this.transferFunction = transferFunction;
         this.exponential = exponential;
     }
-    linearTriggerAndRelease(durationS) {
+    linearTrigger() {
         let t = this.audioCtx.currentTime;
         this.param.cancelScheduledValues(t);
-        t += this.attack;
+        t += this.attackS;
         this.param.linearRampToValueAtTime(this.transferFunction(1.0), t);
-        t += this.decay;
+        t += this.decayS;
         const releaseTime = t;
-        this.param.linearRampToValueAtTime(this.transferFunction(this.sustain), t);
-        t += durationS;
-        this.param.linearRampToValueAtTime(this.transferFunction(this.sustain), t);
-        t += this.release;
-        this.param.linearRampToValueAtTime(this.transferFunction(0), t);
+        this.param.linearRampToValueAtTime(this.transferFunction(this.sustainS), t);
         return releaseTime;
     }
-    exponentialTriggerAndRelease(durationS) {
+    linearRelease() {
+        let t = this.audioCtx.currentTime;
+        this.param.cancelScheduledValues(t);
+        t += this.releaseS;
+        this.param.linearRampToValueAtTime(this.transferFunction(0), t);
+    }
+    exponentialTrigger() {
         let t = this.audioCtx.currentTime;
         this.param.cancelScheduledValues(t);
         this.param.setValueAtTime(t, this.transferFunction(0));
-        t += this.attack;
+        t += this.attackS;
         this.param.exponentialRampToValueAtTime(this.transferFunction(1.0), t);
-        t += this.decay;
+        t += this.decayS;
         const releaseTime = t;
-        this.param.exponentialRampToValueAtTime(this.transferFunction(this.sustain), t);
-        t += durationS;
-        this.param.exponentialRampToValueAtTime(this.transferFunction(this.sustain), t);
-        t += this.release;
-        this.param.exponentialRampToValueAtTime(this.transferFunction(0), t);
+        this.param.exponentialRampToValueAtTime(this.transferFunction(this.sustainS), t);
         return releaseTime;
     }
-    // Returns the begin sustain time.
-    triggerAndRelease(durationS) {
+    exponentialRelease() {
+        let t = this.audioCtx.currentTime;
+        this.param.cancelScheduledValues(t);
+        t += this.releaseS;
+        this.param.exponentialRampToValueAtTime(this.transferFunction(0), t);
+    }
+    trigger() {
         if (this.exponential) {
-            return this.exponentialTriggerAndRelease(durationS);
+            return this.exponentialTrigger();
         }
         else {
-            return this.linearTriggerAndRelease(durationS);
+            return this.linearTrigger();
+        }
+    }
+    release() {
+        if (this.exponential) {
+            this.exponentialRelease();
+        }
+        else {
+            this.linearRelease();
         }
     }
 }
@@ -1604,14 +1660,22 @@ class Synth {
         const hz = this.midiNumberToHz(note) * this.octave;
         this.currentHz = hz;
     }
-    pluck() {
+    trigger() {
         if (this.audioCtx.currentTime > this.releaseDeadline) {
-            this.releaseDeadline = this.env1.triggerAndRelease(0.5);
-            this.subEnv.triggerAndRelease(0.5);
-            this.pitchEnv.triggerAndRelease(0.5);
-            this.highPassEnv.triggerAndRelease(0.5);
-            this.lowPassEnv.triggerAndRelease(0.5);
+            this.releaseDeadline = this.env1.trigger();
+            this.subEnv.trigger();
+            this.pitchEnv.trigger();
+            this.highPassEnv.trigger();
+            this.lowPassEnv.trigger();
         }
+    }
+    release() {
+        this.releaseDeadline = this.audioCtx.currentTime;
+        this.env1.release();
+        this.subEnv.release();
+        this.pitchEnv.release();
+        this.highPassEnv.release();
+        this.lowPassEnv.release();
     }
     getVolumeKnob() {
         return this.volumeKnob;
@@ -1768,15 +1832,17 @@ class Particle {
     }
 }
 class Vortex extends THREE.Object3D {
+    radius;
     static kVS = `
 uniform float bpm;
+uniform float beatsPerLoop;
 
 attribute float size;
 attribute float time;
 varying vec4 vColor;
 void main() {
   float r = position.x;
-  float theta = position.y + time * 6.28 * bpm / 60.0 / 4.0;
+  float theta = position.y + time * 6.28 * bpm / 60.0 / beatsPerLoop;
   float z = position.z;
   float x = r * cos(theta);
   float y = r * sin(theta);
@@ -1800,15 +1866,15 @@ void main() {
     particles = [];
     geometry = new THREE.BufferGeometry();
     points;
-    constructor() {
+    constructor(beatsPerMinute, beatsPerLoop, radius) {
         super();
+        this.radius = radius;
         const uniforms = {
             diffuseTexture: {
                 value: new THREE.TextureLoader().load('./img/dot.png')
             },
-            bpm: {
-                value: 120.0
-            },
+            bpm: { value: 120.0 },
+            beatsPerLoop: { value: 4 },
         };
         this.material = new THREE.ShaderMaterial({
             uniforms: uniforms,
@@ -1829,14 +1895,9 @@ void main() {
         this.UpdateGeometry();
     }
     static kLifeS = 10;
-    AddParticle(position, velocity, color) {
-        if (!position.manhattanLength() || !velocity.manhattanLength()) {
-            return;
-        }
-        const p = new THREE.Vector3();
-        p.copy(position);
-        const v = new THREE.Vector3();
-        v.copy(velocity);
+    AddParticle(zVelocity, color) {
+        const p = new THREE.Vector3(this.radius, 0, 0);
+        const v = new THREE.Vector3(0, 0, zVelocity);
         const colorVector = new THREE.Vector4(color.r, color.g, color.b, 0.5);
         this.particles.push(new Particle(p, v, colorVector, Math.random() * 0.05, 0));
     }

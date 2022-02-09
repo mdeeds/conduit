@@ -28,10 +28,10 @@ class MultiParam {
 }
 
 class ADSR {
-  public attack = 0.05;
-  public decay = 0.05;
-  public sustain = 0.3;
-  public release = 1;
+  public attackS = 0.05;
+  public decayS = 0.05;
+  public sustainS = 0.3;
+  public releaseS = 1;
 
   private static Identity: TransferFunction = function (x: number) { return x; };
 
@@ -40,51 +40,60 @@ class ADSR {
     private exponential = false) {
   }
 
-  private linearTriggerAndRelease(durationS: number): number {
+  private linearTrigger(): number {
     let t = this.audioCtx.currentTime;
     this.param.cancelScheduledValues(t);
-    t += this.attack;
+    t += this.attackS;
     this.param.linearRampToValueAtTime(
       this.transferFunction(1.0), t);
-    t += this.decay;
+    t += this.decayS;
     const releaseTime = t;
     this.param.linearRampToValueAtTime(
-      this.transferFunction(this.sustain), t);
-    t += durationS;
-    this.param.linearRampToValueAtTime(
-      this.transferFunction(this.sustain), t);
-    t += this.release;
-    this.param.linearRampToValueAtTime(
-      this.transferFunction(0), t);
+      this.transferFunction(this.sustainS), t);
     return releaseTime;
   }
+  private linearRelease() {
+    let t = this.audioCtx.currentTime;
+    this.param.cancelScheduledValues(t);
+    t += this.releaseS;
+    this.param.linearRampToValueAtTime(
+      this.transferFunction(0), t);
+  }
 
-  private exponentialTriggerAndRelease(durationS: number): number {
+  private exponentialTrigger(): number {
     let t = this.audioCtx.currentTime;
     this.param.cancelScheduledValues(t);
     this.param.setValueAtTime(t, this.transferFunction(0));
-    t += this.attack;
+    t += this.attackS;
     this.param.exponentialRampToValueAtTime(
       this.transferFunction(1.0), t);
-    t += this.decay;
+    t += this.decayS;
     const releaseTime = t;
     this.param.exponentialRampToValueAtTime(
-      this.transferFunction(this.sustain), t);
-    t += durationS;
-    this.param.exponentialRampToValueAtTime(
-      this.transferFunction(this.sustain), t);
-    t += this.release;
-    this.param.exponentialRampToValueAtTime(
-      this.transferFunction(0), t);
+      this.transferFunction(this.sustainS), t);
     return releaseTime;
   }
 
-  // Returns the begin sustain time.
-  public triggerAndRelease(durationS: number): number {
+  private exponentialRelease() {
+    let t = this.audioCtx.currentTime;
+    this.param.cancelScheduledValues(t);
+    t += this.releaseS;
+    this.param.exponentialRampToValueAtTime(
+      this.transferFunction(0), t);
+  }
+
+  public trigger(): number {
     if (this.exponential) {
-      return this.exponentialTriggerAndRelease(durationS);
+      return this.exponentialTrigger();
     } else {
-      return this.linearTriggerAndRelease(durationS);
+      return this.linearTrigger();
+    }
+  }
+  public release() {
+    if (this.exponential) {
+      this.exponentialRelease();
+    } else {
+      this.linearRelease();
     }
   }
 }
@@ -263,14 +272,22 @@ export class Synth {
     this.currentHz = hz;
   }
 
-  public pluck() {
+  public trigger() {
     if (this.audioCtx.currentTime > this.releaseDeadline) {
-      this.releaseDeadline = this.env1.triggerAndRelease(0.5);
-      this.subEnv.triggerAndRelease(0.5);
-      this.pitchEnv.triggerAndRelease(0.5);
-      this.highPassEnv.triggerAndRelease(0.5);
-      this.lowPassEnv.triggerAndRelease(0.5);
+      this.releaseDeadline = this.env1.trigger();
+      this.subEnv.trigger();
+      this.pitchEnv.trigger();
+      this.highPassEnv.trigger();
+      this.lowPassEnv.trigger();
     }
+  }
+  public release() {
+    this.releaseDeadline = this.audioCtx.currentTime;
+    this.env1.release();
+    this.subEnv.release();
+    this.pitchEnv.release();
+    this.highPassEnv.release();
+    this.lowPassEnv.release();
   }
 
   public getVolumeKnob(): Knob {

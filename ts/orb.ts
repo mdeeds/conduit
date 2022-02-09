@@ -38,6 +38,18 @@ export class Orb extends THREE.Object3D implements Selectable {
     return this;
   }
 
+  public trigger() {
+    this.synth.trigger();
+  }
+
+  public release() {
+    this.synth.release();
+  }
+
+  public change(relativeDelta: number) {
+    this.synth.getVolumeKnob().change(relativeDelta);
+  }
+
   getBlobMaterial(color: THREE.Color): THREE.ShaderMaterial {
     // Vertex shader
     // uniform: cameraPosition
