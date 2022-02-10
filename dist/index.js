@@ -349,7 +349,8 @@ class Game {
     louderColor = new THREE.Color('orange');
     softerColor = new THREE.Color('lightblue');
     pointColor = new THREE.Color('yellow');
-    pluckColor = new THREE.Color('pink');
+    pluckColor = new THREE.Color('red');
+    holdColor = new THREE.Color('pink');
     cutColor = new THREE.Color('green');
     fofColor = new THREE.Color('#f0f');
     getColorForState(s) {
@@ -358,6 +359,7 @@ class Game {
             case 'louder': return this.louderColor;
             case 'point': return this.pointColor;
             case 'pluck': return this.pluckColor;
+            case 'hold': return this.pluckColor;
             case 'cut': return this.cutColor;
             default: return this.fofColor;
         }
@@ -540,7 +542,8 @@ class Hand {
     handleMotion(motion, state) {
         const selected = this.selection.getSelected();
         if (selected != null) {
-            if (this.previousState == 'pluck' && this.previousState != state) {
+            if (this.previousState == 'hold' &&
+                state != 'hold' && this.state != 'pluck') {
                 selected.release();
             }
             switch (state) {
@@ -564,6 +567,9 @@ class Hand {
         this.grip.updateMatrix();
         const xx = this.grip.matrix.elements[0];
         const xy = this.grip.matrix.elements[1];
+        if (this.state == 'pluck') {
+            this.state = 'hold';
+        }
         if (Math.abs(xx) > Math.abs(xy)) {
             this.grip.getWorldPosition(this.v);
             this.camera.getWorldPosition(this.c);
@@ -1299,7 +1305,7 @@ class S {
         S.default.set('m', 0.5); // 0.5 is good for velocity tracking.
         S.default.set('mv', 0.5);
         S.default.set('ma', 0.05);
-        S.default.set('p', 5);
+        S.default.set('p', 9.8);
         S.default.set('v', 0.01);
         S.default.set('s', 5);
         S.default.set('pr', 0.5); // Pointing radius threshold.

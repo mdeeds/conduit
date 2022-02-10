@@ -133,7 +133,8 @@ export class Game {
   private louderColor = new THREE.Color('orange');
   private softerColor = new THREE.Color('lightblue');
   private pointColor = new THREE.Color('yellow');
-  private pluckColor = new THREE.Color('pink');
+  private pluckColor = new THREE.Color('red');
+  private holdColor = new THREE.Color('pink');
   private cutColor = new THREE.Color('green');
   private fofColor = new THREE.Color('#f0f');
 
@@ -143,6 +144,7 @@ export class Game {
       case 'louder': return this.louderColor;
       case 'point': return this.pointColor;
       case 'pluck': return this.pluckColor;
+      case 'hold': return this.pluckColor;
       case 'cut': return this.cutColor;
       default: return this.fofColor;
     }
@@ -180,7 +182,6 @@ export class Game {
     }
     const selected = this.selection.getSelected();
     if (selected instanceof Orb) {
-
       if (this.currentSynth != selected.getSynth() && this.currentSynth) {
         this.currentSynth.release();
       }

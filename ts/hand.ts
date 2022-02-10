@@ -5,7 +5,7 @@ import { S } from "./settings";
 import { Motion, Tracker } from "./tracker";
 
 export type Side = 'left' | 'right';
-export type HandState = 'louder' | 'point' | 'softer' | 'pluck' | 'cut';
+export type HandState = 'louder' | 'point' | 'softer' | 'pluck' | 'hold' | 'cut';
 
 export class Hand {
   readonly gamepad: Gamepad;
@@ -67,7 +67,8 @@ export class Hand {
   private handleMotion(motion: Motion, state: HandState) {
     const selected = this.selection.getSelected();
     if (selected != null) {
-      if (this.previousState == 'pluck' && this.previousState != state) {
+      if (this.previousState == 'hold' &&
+        state != 'hold' && this.state != 'pluck') {
         selected.release();
       }
       switch (state) {
@@ -93,6 +94,9 @@ export class Hand {
     this.grip.updateMatrix();
     const xx = this.grip.matrix.elements[0];
     const xy = this.grip.matrix.elements[1];
+    if (this.state == 'pluck') {
+      this.state = 'hold';
+    }
     if (Math.abs(xx) > Math.abs(xy)) {
       this.grip.getWorldPosition(this.v);
       this.camera.getWorldPosition(this.c);
