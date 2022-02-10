@@ -230,6 +230,10 @@ export class Game {
   private v2 = new THREE.Vector3();
   private handleHand(hand: Hand, deltaS: number) {
     const motion = hand.updateMotion(this.elapsedS, deltaS);
+    this.particleSystem.AddParticle(
+      new THREE.Vector3(0, motion.position.y, -0.5),
+      new THREE.Vector3(-0.6, 0, 0),
+      this.getColorForState(hand.getState()));
     const state = hand.getState();
     if (motion.velocity.length() > Math.random()) {
       this.particleSystem.AddParticle(
