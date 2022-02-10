@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Object3D } from "three";
 import { Selection } from "./selection";
 import { S } from "./settings";
 
@@ -12,6 +13,7 @@ export class Hand {
   private grip: THREE.Group;
   public tracker = new Tracker();
   private state: HandState;
+  private line: Object3D;
 
   constructor(readonly side: Side, renderer: THREE.WebGLRenderer,
     private scene: THREE.Object3D,
@@ -53,6 +55,12 @@ export class Hand {
           { color: 'royalblue', roughness: 0.9 }));
       this.grip.add(handMesh);
     }
+    const lineMaterial = new THREE.LineBasicMaterial({ color: '#def' });
+    const lineGeometry = new THREE.BufferGeometry()
+      .setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 10)]);
+    this.line = new THREE.Line(lineGeometry, lineMaterial);
+    this.grip.add(this.line);
+
     this.scene.add(this.grip);
   }
 
@@ -118,6 +126,7 @@ export class Hand {
     } else {
       this.state = 'softer';
     }
+    this.line.visible = (this.state === 'point');
     this.handleMotion(motion, this.state);
 
     return motion;

@@ -359,7 +359,7 @@ class Game {
             case 'louder': return this.louderColor;
             case 'point': return this.pointColor;
             case 'pluck': return this.pluckColor;
-            case 'hold': return this.pluckColor;
+            case 'hold': return this.holdColor;
             case 'cut': return this.cutColor;
             default: return this.fofColor;
         }
@@ -492,6 +492,7 @@ class Hand {
     grip;
     tracker = new tracker_1.Tracker();
     state;
+    line;
     constructor(side, renderer, scene, selection, camera) {
         this.side = side;
         this.scene = scene;
@@ -531,6 +532,11 @@ class Hand {
             const handMesh = new THREE.Mesh(handGeometry, new THREE.MeshStandardMaterial({ color: 'royalblue', roughness: 0.9 }));
             this.grip.add(handMesh);
         }
+        const lineMaterial = new THREE.LineBasicMaterial({ color: '#def' });
+        const lineGeometry = new THREE.BufferGeometry()
+            .setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 10)]);
+        this.line = new THREE.Line(lineGeometry, lineMaterial);
+        this.grip.add(this.line);
         this.scene.add(this.grip);
     }
     getState() { return this.state; }
@@ -594,6 +600,7 @@ class Hand {
         else {
             this.state = 'softer';
         }
+        this.line.visible = (this.state === 'point');
         this.handleMotion(motion, this.state);
         return motion;
     }
