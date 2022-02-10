@@ -98,12 +98,15 @@ export class Hand {
       this.camera.getWorldPosition(this.c);
       this.v.sub(this.c);
       this.v.y = 0;
+
+      const ya = Math.abs(motion.acceleration.y);
+      const xa = Math.abs(motion.acceleration.x);
       if (this.v.length() > S.float('pr')) {
         this.state = 'point';
       } else if (motion.acceleration.y > Hand.pluckThreshold &&
         motion.velocity.y < 0) {
         this.state = 'pluck';
-      } else if (Math.abs(motion.acceleration.x) > Hand.pluckThreshold) {
+      } else if (xa > Hand.pluckThreshold && ya < xa) {
         this.state = 'cut';
       }
     } else if (xy < 0) {

@@ -134,6 +134,7 @@ export class Game {
   private softerColor = new THREE.Color('lightblue');
   private pointColor = new THREE.Color('yellow');
   private pluckColor = new THREE.Color('pink');
+  private cutColor = new THREE.Color('green');
   private fofColor = new THREE.Color('#f0f');
 
   private getColorForState(s: HandState): THREE.Color {
@@ -142,6 +143,7 @@ export class Game {
       case 'louder': return this.louderColor;
       case 'point': return this.pointColor;
       case 'pluck': return this.pluckColor;
+      case 'cut': return this.cutColor;
       default: return this.fofColor;
     }
   }
@@ -230,16 +232,20 @@ export class Game {
   private v2 = new THREE.Vector3();
   private handleHand(hand: Hand, deltaS: number) {
     const motion = hand.updateMotion(this.elapsedS, deltaS);
+    const state = hand.getState();
     this.particleSystem.AddParticle(
       new THREE.Vector3(0, motion.position.y, -0.5),
-      new THREE.Vector3(-0.6, 0, 0),
-      this.getColorForState(hand.getState()));
-    const state = hand.getState();
-    if (motion.velocity.length() > Math.random()) {
-      this.particleSystem.AddParticle(
-        motion.position, motion.velocity,
-        this.getColorForState(state));
-    }
+      new THREE.Vector3(-0.3, 0, 0),
+      this.getColorForState(state));
+    this.particleSystem.AddParticle(
+      new THREE.Vector3(motion.position.x, 0, -0.5),
+      new THREE.Vector3(0, 0.3, 0),
+      this.getColorForState(state));
+    // if (motion.velocity.length() > Math.random()) {
+    //   this.particleSystem.AddParticle(
+    //     motion.position, motion.velocity,
+    //     this.getColorForState(state));
+    // }
     if (state == 'point') {
       this.ray.origin.copy(motion.position);
       this.v1.copy(motion.position);

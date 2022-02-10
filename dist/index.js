@@ -350,6 +350,7 @@ class Game {
     softerColor = new THREE.Color('lightblue');
     pointColor = new THREE.Color('yellow');
     pluckColor = new THREE.Color('pink');
+    cutColor = new THREE.Color('green');
     fofColor = new THREE.Color('#f0f');
     getColorForState(s) {
         switch (s) {
@@ -357,6 +358,7 @@ class Game {
             case 'louder': return this.louderColor;
             case 'point': return this.pointColor;
             case 'pluck': return this.pluckColor;
+            case 'cut': return this.cutColor;
             default: return this.fofColor;
         }
     }
@@ -428,11 +430,14 @@ class Game {
     v2 = new THREE.Vector3();
     handleHand(hand, deltaS) {
         const motion = hand.updateMotion(this.elapsedS, deltaS);
-        this.particleSystem.AddParticle(new THREE.Vector3(0, motion.position.y, -0.5), new THREE.Vector3(-0.6, 0, 0), this.getColorForState(hand.getState()));
         const state = hand.getState();
-        if (motion.velocity.length() > Math.random()) {
-            this.particleSystem.AddParticle(motion.position, motion.velocity, this.getColorForState(state));
-        }
+        this.particleSystem.AddParticle(new THREE.Vector3(0, motion.position.y, -0.5), new THREE.Vector3(-0.3, 0, 0), this.getColorForState(state));
+        this.particleSystem.AddParticle(new THREE.Vector3(motion.position.x, 0, -0.5), new THREE.Vector3(0, 0.3, 0), this.getColorForState(state));
+        // if (motion.velocity.length() > Math.random()) {
+        //   this.particleSystem.AddParticle(
+        //     motion.position, motion.velocity,
+        //     this.getColorForState(state));
+        // }
         if (state == 'point') {
             this.ray.origin.copy(motion.position);
             this.v1.copy(motion.position);
@@ -564,6 +569,8 @@ class Hand {
             this.camera.getWorldPosition(this.c);
             this.v.sub(this.c);
             this.v.y = 0;
+            const ya = Math.abs(motion.acceleration.y);
+            const xa = Math.abs(motion.acceleration.x);
             if (this.v.length() > settings_1.S.float('pr')) {
                 this.state = 'point';
             }
@@ -571,7 +578,7 @@ class Hand {
                 motion.velocity.y < 0) {
                 this.state = 'pluck';
             }
-            else if (Math.abs(motion.acceleration.x) > Hand.pluckThreshold) {
+            else if (xa > Hand.pluckThreshold && ya < xa) {
                 this.state = 'cut';
             }
         }
