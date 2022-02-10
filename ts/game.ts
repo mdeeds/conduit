@@ -144,7 +144,7 @@ export class Game {
       case 'louder': return this.louderColor;
       case 'point': return this.pointColor;
       case 'pluck': return this.pluckColor;
-      case 'hold': return this.pluckColor;
+      case 'hold': return this.holdColor;
       case 'cut': return this.cutColor;
       default: return this.fofColor;
     }
